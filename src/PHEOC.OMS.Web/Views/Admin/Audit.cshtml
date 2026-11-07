@@ -1,0 +1,3 @@
+@model IReadOnlyList<ActivityRow>
+@{ViewData["Title"]="سجل التدقيق";}
+<div class="page-heading"><div><div class="eyebrow">المساءلة والتتبع</div><h1>سجل التدقيق</h1><p>آخر 300 إجراء مسجل. لا تتضمن السجلات كلمات مرور أو محتوى البيانات الصحية.</p></div></div><section class="panel"><partial name="_Activity" model="Model"/></section>

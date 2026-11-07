@@ -1,0 +1,35 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const base='http://localhost:5268';
+const secrets=JSON.parse(fs.readFileSync(path.join(process.env.APPDATA,'Microsoft/UserSecrets/PHEOC-OMS-PHEOC2-Development/secrets.json'),'utf8').replace(/^\uFEFF/,''));
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];let reviewing=false;
+page.on('pageerror',e=>{if(reviewing)errors.push(e.message);});page.on('console',m=>{if(reviewing&&m.type()==='error')errors.push(m.text());});
+fs.mkdirSync('artifacts/browser',{recursive:true});
+try{
+ await page.goto(base+'/Account/Login');await page.locator('[name=UserName]').fill(secrets['Bootstrap:UserName']);await page.locator('[name=Password]').fill(secrets['Bootstrap:Password']);await page.locator('button.primary').click();await page.waitForURL(base+'/');
+ reviewing=true;await page.goto(base+'/Admin/Users');await page.locator('details.entry').first().locator('summary').click();
+ const form=page.locator('[data-user-create]'),role=form.locator('[name=Role]'),scope=form.locator('[name=GovernorateId]');
+ const checked=()=>form.locator('[name=Permissions]:checked').evaluateAll(boxes=>boxes.map(b=>b.value).sort());
+ const box=value=>form.locator('[name=Permissions][value="'+value+'"]');
+ await role.selectOption('Risk Assessment Officer');assert.deepEqual(await checked(),['Events.View','QIRA.Reassess','Reports.View','RiskAssessment.Create']);
+ await box('RiskAssessment.Create').uncheck();await box('Health.View').check();
+ const submitted=await form.evaluate(f=>new FormData(f).getAll('Permissions'));
+ assert(submitted.includes('Health.View'));assert(!submitted.includes('RiskAssessment.Create'));
+ await form.locator('[data-restore-role]').click();assert.deepEqual(await checked(),['Events.View','QIRA.Reassess','Reports.View','RiskAssessment.Create']);
+ await role.selectOption('Inventory Officer');assert.deepEqual(await checked(),['Events.View','Inventory.Manage','Inventory.View']);
+ await role.selectOption('System Administrator');assert.equal((await checked()).length,await form.locator('[name=Permissions]').count());
+ await box('Admin.ManageUsers').uncheck();assert(!(await checked()).includes('Admin.ManageUsers'));assert(await scope.isDisabled());
+ await role.selectOption('PHEOC Director');await scope.selectOption('1');assert(await box('Audit.View').isDisabled());assert(!(await checked()).includes('Audit.View'));
+ await role.selectOption('System Administrator');assert.equal(await scope.inputValue(),'');assert(await scope.isDisabled());
+ await role.selectOption('External Agency User');assert.deepEqual(await checked(),['Events.View']);assert(await scope.isEnabled());
+ await page.screenshot({path:'artifacts/browser/role-permissions-desktop.png'});
+ await page.setViewportSize({width:390,height:844});await page.waitForTimeout(300);
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ await page.screenshot({path:'artifacts/browser/role-permissions-mobile.png'});
+ assert.deepEqual(errors,[]);
+ const result={roleDefaults:'PASS',manualChangesInSubmission:'PASS',restore:'PASS',roleSwitch:'PASS',administratorEditable:'PASS',scopeConstraints:'PASS',mobile:'PASS',javascriptErrors:0,mode:'No live user created; SQL creation and effective claims are tested with rollback'};
+ fs.writeFileSync('artifacts/browser/role-permissions-results.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+}finally{await browser.close();}

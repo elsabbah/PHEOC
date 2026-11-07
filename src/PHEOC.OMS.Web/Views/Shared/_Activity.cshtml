@@ -1,0 +1,2 @@
+@model IReadOnlyList<ActivityRow>
+@if(Model.Count==0){<p class="empty">لا توجد سجلات بعد.</p>}else{<div class="activity-list">@foreach(var a in Model){<article class="activity"><div><span class="badge">@a.Type</span><small>@Ui.Time(a.At)</small></div><p>@a.Text</p><small class="muted">@a.Actor @a.State</small></article>}</div>}

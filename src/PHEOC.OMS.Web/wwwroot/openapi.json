@@ -1,0 +1,16 @@
+{
+  "openapi":"3.0.3",
+  "info":{"title":"PHEOC-OMS EBS integration API","version":"1.0.0","description":"Proposed push contract. The implemented EgyptEBS SQL adapter uses the verified source schema independently."},
+  "paths":{
+    "/api/integration/ebs/events":{"post":{"security":[{"ApiKey":[]}],"summary":"Receive a confirmed event idempotently","parameters":[{"name":"Idempotency-Key","in":"header","required":true,"schema":{"type":"string","maxLength":128}}],"requestBody":{"required":true,"content":{"application/json":{"schema":{"$ref":"#/components/schemas/Envelope"}}}},"responses":{"201":{"description":"Created"},"200":{"description":"Same event already received"},"400":{"description":"Invalid input or unconfirmed event"},"401":{"description":"Invalid API credential"},"409":{"description":"Idempotency key/external identity conflicts with payload"},"429":{"description":"Rate limited"}}}},
+    "/api/integration/ebs/events/{id}":{"get":{"security":[{"ApiKey":[]}],"summary":"Read current state by PHEOC public ID","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"200":{"description":"Public ID, source, external event ID, state and receipt time"},"401":{"description":"Unauthorized"},"404":{"description":"Not found"}}}},
+    "/api/integration/ebs/events/{id}/status":{"post":{"security":[{"ApiKey":[]}],"summary":"Queue a status callback without changing event state","parameters":[{"name":"id","in":"path","required":true,"schema":{"type":"string","format":"uuid"}}],"responses":{"202":{"description":"Status queued. Does not confirm delivery."},"401":{"description":"Unauthorized"},"404":{"description":"Not found"}}}}
+  },
+  "components":{
+    "securitySchemes":{"ApiKey":{"type":"apiKey","in":"header","name":"X-Api-Key"}},
+    "schemas":{
+      "Envelope":{"type":"object","required":["externalEventId","event"],"properties":{"externalEventId":{"type":"string","maxLength":128},"event":{"$ref":"#/components/schemas/Event"}}},
+      "Event":{"type":"object","required":["title","eventType","threatType","governorateId","confirmedAt"],"properties":{"title":{"type":"string","maxLength":200},"eventType":{"type":"string","maxLength":80},"threatType":{"type":"string","maxLength":80},"governorateId":{"type":"integer","minimum":1},"location":{"type":"string","maxLength":500},"description":{"type":"string","maxLength":4000},"casesCount":{"type":"integer","minimum":0,"nullable":true},"deathsCount":{"type":"integer","minimum":0,"nullable":true},"latitude":{"type":"number","minimum":-90,"maximum":90,"nullable":true},"longitude":{"type":"number","minimum":-180,"maximum":180,"nullable":true},"occurredAt":{"type":"string","format":"date-time","nullable":true},"detectedAt":{"type":"string","format":"date-time","nullable":true},"notifiedAt":{"type":"string","format":"date-time","nullable":true},"verifiedAt":{"type":"string","format":"date-time","nullable":true},"confirmedAt":{"type":"string","format":"date-time"},"isTraining":{"type":"boolean","default":false}}}
+    }
+  }
+}

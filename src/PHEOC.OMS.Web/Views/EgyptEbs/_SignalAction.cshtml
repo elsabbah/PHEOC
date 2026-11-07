@@ -1,0 +1,2 @@
+@model EgyptEbsSignal
+<form asp-controller="EgyptEbs" asp-action="Import" asp-route-id="@Model.SignalId" method="post"><button class="@(Model.Imported?"secondary":"primary")">@(Model.Imported?"فتح الحدث المستلم":"استقبال الحدث")</button></form>

@@ -1,0 +1,18 @@
+@model EgyptEbsBoard
+@{var filter=Model.Filter??new EgyptEbsFilter();}
+<section class="panel" aria-label="البحث والفلترة">
+<form asp-controller="EgyptEbs" asp-action="Index" method="get" class="filters" id="ebs-filters">
+    <input type="hidden" name="Page" value="1"/>
+    <input type="hidden" name="Display" value="@filter.Display"/>
+    @if(Model.Before.HasValue){<input type="hidden" name="before" value="@Model.Before"/>}
+    <label class="grow">البحث<input name="Search" value="@filter.Search" maxlength="120" placeholder="رقم الإشارة بالكامل، النوع، الوصف أو العنوان"/></label>
+    <label>المحافظة<select name="Governorate"><option value="">كل المحافظات</option>@foreach(var governorate in Model.Governorates??[]){<option value="@governorate" selected="@(filter.Governorate==governorate)">@governorate</option>}</select></label>
+    <label>النوع<select name="TypeId"><option value="">كل الأنواع</option>@foreach(var type in Model.SignalTypes??[]){<option value="@type.Id" selected="@(filter.TypeId==type.Id)">@type.Name</option>}</select></label>
+    <label>حالة الاستقبال<select name="Receipt"><option value="all" selected="@(filter.Receipt=="all")">الكل</option><option value="pending" selected="@(filter.Receipt=="pending")">لم يتم استقبالها</option><option value="received" selected="@(filter.Receipt=="received")">تم استقبالها</option></select></label>
+    <label>تاريخ التحقق من<input type="date" name="From" value="@filter.From?.ToString("yyyy-MM-dd")"/></label>
+    <label>تاريخ التحقق إلى<input type="date" name="To" value="@filter.To?.ToString("yyyy-MM-dd")"/></label>
+    <label>عدد النتائج في الصفحة<select name="PageSize">@foreach(var size in new[]{20,50,100}){<option value="@size" selected="@(filter.PageSize==size)">@size</option>}</select></label>
+    <div class="actions"><button class="primary" type="submit">بحث وتطبيق الفلاتر</button><a class="secondary" href="/EgyptEbs">مسح الفلاتر</a></div>
+</form>
+<p class="muted">التاريخ الافتراضي من أمس إلى اليوم بتوقيت مصر. يمكنك تعديل المدة أو مسح التاريخين لعرض كل الفترات.</p>
+</section>

@@ -1,0 +1,5 @@
+@model IReadOnlyList<EventRow>
+<div class="table-scroll"><table><thead><tr><th>الحدث</th><th>المحافظة</th><th>نوع الحدث</th><th>الحالة</th><th>الحالات / الوفيات</th><th>الاستلام</th><th></th></tr></thead><tbody>
+@foreach(var e in Model){<tr><td><a class="event-title" href="/Events/Details/@e.Id">@e.Title</a>@if(e.IsTraining){<span class="badge">تدريبي</span>}<small class="muted block">EVT-@e.Id.ToString("D6")</small></td><td>@e.Governorate</td><td>@e.EventType</td><td><span class="badge status-@e.Status">@Ui.Status(e.Status)</span></td><td>@(e.Cases?.ToString()??"—") / @(e.Deaths?.ToString()??"—")</td><td class="nowrap">@Ui.Time(e.ReceivedAt)</td><td><a class="text-link" href="/Events/Details/@e.Id">التفاصيل ←</a></td></tr>}
+@if(Model.Count==0){<tr><td colspan="7"><div class="empty"><strong>لا توجد أحداث في هذا النطاق</strong><p>ستظهر هنا الأحداث المسجلة أو الواردة من التكامل.</p></div></td></tr>}
+</tbody></table></div>

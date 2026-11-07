@@ -1,0 +1,63 @@
+@model QiraDetail
+@using PHEOC.OMS.Domain.Qira
+@{
+ ViewData["Title"]="تقييم المخاطر QIRA";
+ var a=Model.Assessment;var path=Model.Evaluation.Path;var requested=(string?)ViewBag.Node;
+ var selected=requested!=null&&path.Contains(requested)?requested:Model.Evaluation.Next;
+ var question=Model.Definition.Nodes.FirstOrDefault(n=>n.Id==selected);
+ var answer=Model.Answers.FirstOrDefault(x=>x.Node==selected&&x.Active);
+ var scopeReady=!string.IsNullOrWhiteSpace(Model.Population)&&!string.IsNullOrWhiteSpace(Model.TimeWindow);
+ var position=selected==null?path.Count:path.ToList().IndexOf(selected);
+ var previous=position>0?path[position-1]:null;
+ var answered=Model.Answers.Count(x=>x.Active&&path.Contains(x.Node));
+}
+<div class="qira-wizard">
+<header class="qira-heading"><div><div class="eyebrow">QIRA · تقييم المخاطر خطوة بخطوة</div><h1>@Model.Event.Title</h1><p>@Model.Event.Governorate · الإصدار @a.Revision · @QiraText.State(a.State)</p></div><a class="secondary" href="/Events/Details/@Model.Event.Id#risk">العودة إلى الحدث</a></header>
+@if(!scopeReady&&Model.Editable){<section class="panel qira-setup"><span class="eyebrow">قبل البداية</span><h2>حدد السكان والفترة محل التقييم</h2><p class="muted">بعدها اختر إجابة كل سؤال لتنتقل إلى الخطوة المناسبة تلقائياً.</p><partial name="_Scope" model="Model"/></section>}
+@if(scopeReady||!Model.Editable){
+<partial name="_Tree" model="Model"/>
+@if(Model.Editable&&question!=null){
+<section class="panel qira-question qira-tree-notes" id="question" aria-labelledby="qira-question-title">
+ <div class="qira-step-label"><span>الخطوة @(position+1)</span><small>@Model.Definition.Axes[question.Axis-1]</small></div>
+ <h2 id="qira-question-title">ملاحظات السؤال @question.Number</h2>
+ <p class="muted">اختر إجابتك من بطاقة السؤال داخل الشجرة. التفاصيل التالية اختيارية.</p>
+ <form id="qira-answer-form" asp-action="Answer" asp-route-id="@a.Id" method="post" class="stack qira-form" data-qira-answer data-hazard-valid="@((Model.NovelHazard||Model.HighThreatHazards.Contains(Model.Hazard)).ToString().ToLowerInvariant())">
+  <input name="Version" type="hidden" value="@a.Version"/><input name="Node" type="hidden" value="@question.Id"/>
+  @if(question.Id=="Q1"){
+   <p class="qira-hazard">الخطر محل التقييم: <strong>@Model.Hazard</strong> <a href="#qira-scope" data-qira-open-scope>تغيير</a></p>
+   <p class="validation" data-qira-hazard-error hidden>لتختار «نعم»، حدد اسم الخطر من قائمة الأخطار في بيانات التقييم واحفظه أولاً.</p>
+   @if(Model.HighThreatHazards.Count==0&&!Model.NovelHazard){<p class="notice">لا توجد قائمة أخطار محددة لهذا التقييم؛ اختر «غير معروف».</p>}
+  }
+  @if(question.Id=="Q1"&&Model.NovelHazard){<label>سبب اختيار المسار للخطر المستجد<textarea name="Notes" required maxlength="2000">@answer?.Notes</textarea></label>}
+  <details class="qira-more" data-qira-notes><summary>إضافة ملاحظة أو مصدر أو دليل (اختياري)</summary><div class="stack">
+   @if(!(question.Id=="Q1"&&Model.NovelHazard)){<label>الملاحظات<textarea name="Notes" maxlength="2000">@answer?.Notes</textarea></label>}
+   <label>مصدر المعلومات<input name="Source" value="@answer?.Source" maxlength="2000"/></label><label>الأدلة المتاحة<textarea name="Evidence" maxlength="4000">@answer?.Evidence</textarea></label>
+   <label>مرفق داعم<select name="AttachmentId"><option value="">بدون مرفق</option>@foreach(var file in Model.Attachments){<option value="@file.Id" selected="@(file.Id==answer?.AttachmentId)">@file.Name</option>}</select></label>
+  </div></details>
+ </form>
+ <details class="qira-more qira-help"><summary>مساعدة في الإجابة</summary><p>@question.Guidance</p>@if(question.Id=="Q1"&&Model.HighThreatHazards.Count>0){<p>الأخطار المحددة في مرجع هذا التقييم:</p><ul>@foreach(var hazard in Model.HighThreatHazards){<li>@hazard</li>}</ul><p>إذا كانت الإجابة «نعم»، يجب تحديد اسم الخطر من القائمة في بيانات التقييم.</p>}<p lang="en" dir="ltr">@question.English</p></details>
+ <div class="qira-step-footer">@if(previous!=null){<a class="secondary" href="/Qira/Details/@a.Id?node=@previous#qira-tree">→ السؤال السابق</a>}else{<span></span>}<small>@answered إجابة محفوظة</small></div>
+ @if(answer!=null){<p class="qira-revisit-note">تغيير هذه الإجابة يستلزم مراجعة الأسئلة التالية على المسار الجديد.</p>}
+</section>
+}
+@if(Model.Editable&&question==null&&Model.Evaluation.Risk is {} preview){
+<section class="panel qira-finish"><div class="qira-result risk-@preview"><small>اكتمل مسار الأسئلة · نتيجة أولية</small><strong>@QiraText.Risk(preview)</strong></div><h2>خطوة أخيرة: مدى الثقة في المعلومات</h2>
+<form asp-action="Complete" asp-route-id="@a.Id" method="post" class="stack"><input name="Version" type="hidden" value="@a.Version"/>
+<label>مستوى الثقة<select name="Confidence" required><option value="">اختر</option>@foreach(var confidence in Enum.GetValues<QiraConfidence>()){<option value="@confidence">@QiraText.Confidence(confidence)</option>}</select></label>
+<label>سبب اختيار مستوى الثقة<textarea name="ConfidenceReason" required maxlength="2000"></textarea></label>
+<label>ما المعلومات الناقصة؟ @(Model.Evaluation.UnknownNodes.Count>0?"(مطلوب لوجود إجابات غير معروف)":"(اختياري)")<textarea name="Uncertainties" required="@(Model.Evaluation.UnknownNodes.Count>0)" maxlength="4000"></textarea></label>
+<button type="submit" class="primary">حفظ النتيجة وإرسالها للمراجعة</button></form><a class="qira-edit" href="/Qira/Details/@a.Id?node=@path.Last()#qira-tree">→ مراجعة آخر إجابة</a>
+</section>}
+<partial name="_Result" model="Model"/>
+<partial name="_Actions" model="Model"/>
+<partial name="_Evidence" model="Model"/>
+}
+<details class="panel qira-secondary" id="qira-scope"><summary>بيانات الحدث ونطاق التقييم</summary>
+<div class="facts"><div><small>رقم الحدث</small><strong>EVT-@Model.Event.Id.ToString("D6")</strong></div><div><small>النوع / الموقع</small><strong>@Model.Event.EventType · @Model.Location</strong></div><div><small>الحالات / الوفيات</small><strong>@(Model.Event.Cases?.ToString()??"غير مسجل") / @(Model.Event.Deaths?.ToString()??"غير مسجل")</strong></div><div><small>القائم بالتقييم</small><strong>@a.Assessor · @Ui.Time(a.StartedAt)</strong></div></div>
+@if(scopeReady||!Model.Editable){<partial name="_Scope" model="Model"/>}
+<p class="muted">مرجع الأخطار والإجراءات: @(Model.PolicyName??"لم يُحدد بعد")</p>
+</details>
+<details class="panel qira-secondary"><summary>سجل التقييمات والتعديلات والمراجعة</summary><p><a href="/Qira/Event/@Model.Event.Id">عرض جميع إصدارات تقييم الحدث</a></p><partial name="_Activity" model="Model.History"/></details>
+<details class="qira-reference"><summary>عن منهجية QIRA</summary><p>الأسئلة تتبع مسار القرار في دليل WHO. لا يحل QIRA محل التقييم المتعمق MS-RRA أو متطلبات IHR.</p><p>@Model.Definition.Version · <a href="@Model.Definition.Source" target="_blank" rel="noopener">المصدر</a></p><p>ترجمة وتكييف غير رسميين؛ لا تعني اعتماد WHO للتطبيق. المصدر بترخيص CC BY-NC-SA 3.0 IGO.</p></details>
+</div>
+@section Scripts{<script src="~/js/qira-tree.js" asp-append-version="true" defer></script><script src="~/js/qira-steps.js" asp-append-version="true" defer></script>}

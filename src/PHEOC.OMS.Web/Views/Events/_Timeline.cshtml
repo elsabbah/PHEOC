@@ -1,0 +1,25 @@
+@model IReadOnlyList<ActivityRow>
+@if(Model.Count==0){<p class="empty">لا توجد إجراءات مسجلة في السجل الزمني لهذا الحدث.</p>}else{
+<ol class="event-timeline" aria-label="تسلسل إجراءات الحدث">
+@foreach(var item in Model){
+    var style=TimelinePresentation.For(item);
+    var local=TimelinePresentation.EgyptLocal(item.At);
+    <li class="event-timeline-item timeline-tone-@style.Tone" data-timeline-id="@item.Id">
+        <span class="timeline-marker" aria-hidden="true"><partial name="_TimelineIcon" model="style.Icon"/></span>
+        <article class="timeline-entry">
+            <div class="timeline-entry-content">
+                <span class="timeline-action" title="@item.Type">@style.Label</span>
+                <div class="timeline-entry-text"><p class="timeline-summary">@item.Text</p>
+                @if(!string.IsNullOrWhiteSpace(item.Actor)){<small class="timeline-actor">بواسطة: <bdi>@item.Actor</bdi></small>}
+                @if(!string.IsNullOrWhiteSpace(item.State)){<small class="timeline-actor">@item.State</small>}
+                </div>
+            </div>
+            <time class="timeline-stamp" datetime="@DateTime.SpecifyKind(item.At,DateTimeKind.Utc).ToString("O")" aria-label="التاريخ والوقت بتوقيت مصر">
+                <span class="timeline-stamp-date"><partial name="_TimelineIcon" model='@("calendar")'/><bdi dir="ltr">@local.ToString("yyyy/MM/dd",System.Globalization.CultureInfo.InvariantCulture)</bdi></span>
+                <span class="timeline-stamp-time"><partial name="_TimelineIcon" model='@("clock")'/><bdi dir="ltr">@local.ToString("hh:mm",System.Globalization.CultureInfo.InvariantCulture) <span lang="ar" dir="rtl">@(local.Hour<12?"ص":"م")</span></bdi></span>
+            </time>
+        </article>
+    </li>
+}
+</ol>
+}

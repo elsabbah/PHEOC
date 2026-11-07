@@ -1,0 +1,23 @@
+@model EgyptEbsServerInput
+@{ViewData["Title"]="خادم EgyptEBS";var current=(EgyptEbsServerView)ViewBag.Current;}
+<div class="page-heading"><div><div class="eyebrow">إعدادات التكامل</div><h1>خادم EgyptEBS</h1><p>تغيير عنوان خادم قاعدة بيانات المصدر، مع استخدام حساب القراءة المحفوظ.</p></div><div class="actions"><a class="secondary" href="/Admin/Settings">الإعدادات</a><a class="secondary" href="/EgyptEbs">استقبال الأحداث</a></div></div>
+<section class="panel">
+    <h2>اتصال المصدر</h2>
+    <p>الخادم الحالي: <bdi id="ebs-current-server">@(string.IsNullOrWhiteSpace(current.CurrentServer)?"غير مُعد":current.CurrentServer)</bdi></p>
+    <p class="muted">قاعدة البيانات: EgyptEBS. يستخدم الاختبار حساب القراءة المحفوظ. إذا كان الخادم الآخر لا يقبل هذا الحساب، أدخل حساب القراءة الخاص به أدناه. تبقى إعدادات أمان الاتصال الحالية كما هي.</p>
+    @if(ViewBag.TestSuccess is string message){<p class="notice success" role="status">@message</p>}
+    @if(!ViewData.ModelState.IsValid){<div asp-validation-summary="All" class="notice" role="alert"></div>}
+    @if(current.Configured){
+    <form asp-action="Save" method="post" class="stack">
+        <input asp-for="Revision" type="hidden"/>
+        <label>عنوان خادم SQL Server<input asp-for="Server" dir="ltr" required maxlength="255" autocomplete="off" placeholder="192.168.1.10,1433"/></label>
+        <p class="muted">يمكن إدخال اسم خادم، أو SERVER\INSTANCE، أو عنوان IP مع منفذ مثل 192.168.1.10,1433.</p>
+        <h3>حساب القراءة — اختياري</h3>
+        <p class="muted">اترك الحقلين فارغين للاحتفاظ بالحساب المحفوظ. لتغييره أدخل اسم المستخدم وكلمة المرور معاً؛ تُحفظ البيانات البديلة مشفرة بعد نجاح الاختبار.</p>
+        <label>اسم مستخدم SQL<input asp-for="UserName" dir="ltr" maxlength="128" autocomplete="off"/></label>
+        <label>كلمة مرور الحساب الجديدة<input type="password" name="Password" dir="ltr" maxlength="512" autocomplete="new-password"/></label>
+        <label><input asp-for="UseOriginalAccount"/> استخدام حساب إعداد التشغيل الأصلي بدلاً من الحساب البديل</label>
+        <div class="actions"><button type="submit" class="secondary" asp-action="Test">اختبار الاتصال</button><button type="submit" class="primary">اختبار وحفظ العنوان</button></div>
+    </form>
+    }else{<p class="notice">يجب تهيئة بيانات حساب قراءة EgyptEBS في إعدادات التشغيل أولاً.</p>}
+</section>

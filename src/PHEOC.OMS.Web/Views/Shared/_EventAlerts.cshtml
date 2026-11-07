@@ -1,0 +1,20 @@
+@if(Current.Can(Permissions.EventsView)) {
+<div class="event-alerts" id="event-alerts" data-user="@Current.Id">
+    <button class="alerts-trigger" id="alerts-toggle" type="button" aria-label="تنبيهات الأحداث الجديدة" aria-expanded="false" aria-controls="alerts-panel">
+        <svg class="alerts-bell" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z"/><path d="M10 21h4"/></svg>
+        <span id="alerts-count" class="alerts-count" hidden>0</span>
+    </button>
+    <button class="alerts-sound" id="alerts-sound" type="button" aria-pressed="false" title="تفعيل الصوت يتطلب نقرة للسماح بتشغيله في المتصفح">تفعيل الصوت</button>
+    <section class="alerts-panel" id="alerts-panel" aria-labelledby="alerts-heading" hidden>
+        <div class="alerts-panel-heading"><div><h2 id="alerts-heading">أحداث جديدة</h2><p id="alerts-summary">جارٍ التحقق من التنبيهات…</p></div><button type="button" class="alerts-close" id="alerts-close" aria-label="إغلاق قائمة التنبيهات">×</button></div>
+        <ul class="alerts-list" id="alerts-list"></ul>
+        <p class="alerts-empty" id="alerts-empty" hidden>لا توجد أحداث جديدة غير مقروءة.</p>
+        <div class="alerts-panel-footer"><button type="button" class="text-button" id="alerts-read" disabled>تحديد المعروض كمقروء</button><a href="/Communications">مركز الإشعارات ←</a></div>
+        <p class="alerts-status" id="alerts-status" role="status" aria-live="polite"></p>
+    </section>
+    <form id="alerts-token" method="post" asp-controller="EventAlerts" asp-action="Read" hidden></form>
+</div>
+<aside class="arrival-toast" id="arrival-toast" role="status" aria-live="polite" aria-atomic="true" hidden>
+    <span class="arrival-toast-symbol" aria-hidden="true">!</span><div class="arrival-toast-content"><strong id="arrival-toast-heading">وصول حدث جديد</strong><p id="arrival-toast-text"></p><a id="arrival-toast-link" href="/Events">فتح الحدث ←</a></div><button type="button" id="arrival-toast-close" class="alerts-close" aria-label="إغلاق تنبيه الوصول">×</button>
+</aside>
+}

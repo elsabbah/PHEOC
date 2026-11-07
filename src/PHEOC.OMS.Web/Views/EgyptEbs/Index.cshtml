@@ -1,0 +1,21 @@
+@model EgyptEbsBoard
+@{ViewData["Title"]="استقبال EgyptEBS";}
+<div class="page-heading"><div><div class="eyebrow">المصدر الخارجي · قراءة فقط</div><h1>استقبال الأحداث من EgyptEBS</h1><p>أحدث الإشارات غير المحذوفة التي كان آخر تحقق لها «نعم» وآخر فرز لها «يدرج».</p></div></div>
+@if(Model.Configured){
+<p><a href="/EgyptEbsServer">إعدادات خادم EgyptEBS ←</a></p>
+<section class="panel" id="ebs-reception" data-filter-from="@Model.Filter?.From?.ToString("yyyy-MM-dd")" data-filter-to="@Model.Filter?.To?.ToString("yyyy-MM-dd")" data-list-version="@(Model.LastSuccessAt.HasValue ? DateTime.SpecifyKind(Model.LastSuccessAt.Value,DateTimeKind.Utc).ToString("O") : "")">
+    <div class="section-heading"><h2>الاستقبال التلقائي</h2><span class="badge" id="ebs-enabled">@(Model.Automatic?"مفعّل":"متوقف")</span></div>
+    <p class="muted">عند التفعيل تُستقبل الإشارات المؤكدة والمدرجة التي تتغير بياناتها من الآن فصاعداً، كل دقيقة. تظل الإشارات الأقدم متاحة للاستقبال اليدوي. تحفظ نقاط التقدم ويُمنع التكرار؛ لا تُستبدل لقطات الأحداث المستلمة تلقائياً.</p>
+    <p>آخر فحص ناجح للمصدر: <time id="ebs-last-success">@Ui.Time(Model.LastSuccessAt)</time></p>
+    <p class="muted" id="ebs-clock"></p>
+    <p class="muted" id="ebs-live-status" role="status" aria-live="polite">جارٍ تحديث حالة الاستقبال…</p>
+    <p class="notice" id="ebs-error" hidden="@(string.IsNullOrWhiteSpace(Model.LastError))">@Model.LastError</p>
+    <form asp-action="Automatic" method="post"><input name="enabled" type="hidden" value="@(Model.Automatic ? "false" : "true")"/><button class="secondary">@(Model.Automatic?"إيقاف الاستقبال التلقائي":"تفعيل الاستقبال من الآن")</button></form>
+</section>
+<partial name="_Filters" model="Model"/>
+<p id="ebs-arrival-status" class="muted" role="status" aria-live="polite"></p>
+<div id="ebs-signals"><partial name="_Signals" model="Model"/></div>
+@section Scripts{<script src="~/js/egypt-ebs.js" asp-append-version="true" defer></script>}
+}else{
+<section class="panel"><h2>إعداد اتصال القراءة مطلوب</h2><p>لم يُضبط اتصال EgyptEBS لحساب قراءة مستقل بعد. تتوفر طريقة الإعداد في دليل النشر.</p></section>
+}

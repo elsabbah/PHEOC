@@ -1,0 +1,1 @@
+{"name":"pheoc-oms-local-assets","private":true,"scripts":{"test:ui":"node scripts/browser-check.mjs"},"dependencies":{"@microsoft/signalr":"8.0.7","leaflet":"^1.9.4"},"devDependencies":{"playwright":"1.64.1"}}

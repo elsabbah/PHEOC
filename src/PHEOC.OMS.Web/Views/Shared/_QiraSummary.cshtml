@@ -1,0 +1,6 @@
+@model QiraEventSummary
+<div class="section-heading"><h2>التقييم الأولي السريع للمخاطر</h2><span class="badge">QIRA</span></div>
+@if(Model?.Approved is {} approved){<div class="qira-result risk-@approved.Risk"><small>آخر مستوى معتمد · الإصدار @approved.Revision</small><strong>@QiraText.Risk(approved.Risk)</strong><span>الثقة: @QiraText.Confidence(approved.Confidence) · @Ui.Time(approved.CompletedAt)</span><a href="/Qira/Details/@approved.Id">عرض التقييم المعتمد</a></div>}
+else{<p class="empty">لا يوجد تقييم QIRA معتمد لهذا الحدث.</p>}
+@if(Model?.Latest is {} latest){<p>آخر تقييم: <a href="/Qira/Details/@latest.Id">الإصدار @latest.Revision — @QiraText.State(latest.State)</a></p>}
+@if(Model!=null){<a class="secondary" href="/Qira/Event/@Model.EventId">التقييمات وسجل الإصدارات</a>@if(Current.Can(Permissions.RiskCreate)){<form asp-controller="Qira" asp-action="Start" method="post" class="qira-inline"><input type="hidden" name="eventId" value="@Model.EventId"/><button class="primary">بدء / متابعة تقييم QIRA</button></form>}}

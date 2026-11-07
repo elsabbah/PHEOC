@@ -1,0 +1,52 @@
+@model EgyptEbsBoard
+@{
+    var filter=Model.Filter??new EgyptEbsFilter();
+    var currentPage=filter.Page;
+    string PageUrl(int page,string? display=null)=>Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(Url.Action("Index","EgyptEbs")!,new Dictionary<string,string?>{
+        ["Search"]=filter.Search,["Governorate"]=filter.Governorate,["TypeId"]=filter.TypeId?.ToString(),["Receipt"]=filter.Receipt,
+        ["From"]=filter.From?.ToString("yyyy-MM-dd")??"",["To"]=filter.To?.ToString("yyyy-MM-dd")??"",
+        ["Page"]=page.ToString(),["PageSize"]=filter.PageSize.ToString(),["Display"]=display??filter.Display,["before"]=Model.Before?.ToString()
+    });
+}
+<section class="panel" data-ebs-signals-card data-rendered-at="@DateTime.UtcNow.ToString("O")" data-display="@filter.Display">
+    <div class="section-heading ebs-results-heading"><div><h2>الإشارات المؤكدة والمدرجة</h2><span id="ebs-result-count">@Model.TotalCount نتيجة</span></div>
+        <div class="ebs-view-switch" role="group" aria-label="طريقة عرض الإشارات">
+            <a class="secondary" href="@PageUrl(currentPage,"table")" data-ebs-display="table" aria-current="@(filter.Display=="table"?"true":null)"><span aria-hidden="true">▤</span> عرض جدولي</a>
+            <a class="secondary" href="@PageUrl(currentPage,"cards")" data-ebs-display="cards" aria-current="@(filter.Display=="cards"?"true":null)"><span aria-hidden="true">▦</span> كروت</a>
+        </div>
+    </div>
+    <p class="muted">@(Model.TotalCount==0?"لا توجد نتائج":$"عرض {(currentPage-1)*filter.PageSize+1} إلى {Math.Min(currentPage*filter.PageSize,Model.TotalCount)} من {Model.TotalCount}")</p>
+    @if(filter.Display=="cards"){
+        <div class="ebs-signal-grid">
+        @foreach(var s in Model.Signals){
+            <article class="ebs-signal-card" data-signal-id="@s.SignalId" data-imported="@(s.Imported?"true":"false")" data-received-at="@s.ReceivedAtUtc?.ToString("O")">
+                <header><span class="ebs-signal-number"><bdi>#@s.SignalId</bdi></span><span class="badge">@(s.Imported?"تم استقبالها":"بانتظار الاستقبال")</span></header>
+                <h3>@s.Type</h3>
+                <p class="ebs-signal-place">@s.Governorate</p>
+                @if(!string.IsNullOrWhiteSpace(s.Category)){<p class="muted">@s.Category</p>}
+                @if(!string.IsNullOrWhiteSpace(s.Location)){<p class="ebs-signal-address">@s.Location</p>}
+                @if(!string.IsNullOrWhiteSpace(s.Description)){<p class="ebs-signal-description">@s.Description</p>}
+                <dl class="ebs-signal-dates"><div><dt>الاكتشاف في المصدر</dt><dd><bdi>@s.DetectionLocal.ToString("yyyy-MM-dd HH:mm")</bdi></dd></div><div><dt>التحقق في المصدر</dt><dd><bdi>@s.VerificationLocal.ToString("yyyy-MM-dd HH:mm")</bdi></dd></div>
+                @if(s.ReceivedAtUtc.HasValue){<div><dt>استقبال التطبيق — مصر</dt><dd><bdi>@Ui.Time(s.ReceivedAtUtc)</bdi></dd></div>}</dl>
+                <footer><partial name="_SignalAction" model="s"/></footer>
+            </article>
+        }
+        </div>
+    }else{
+        <div class="table-scroll"><table><thead><tr><th>الإشارة</th><th>النوع</th><th>محافظة الحدث</th><th>الاكتشاف في المصدر</th><th>التحقق في المصدر</th><th>الاستقبال</th></tr></thead><tbody>
+        @foreach(var s in Model.Signals){
+            <tr data-signal-id="@s.SignalId" data-imported="@(s.Imported?"true":"false")" data-received-at="@s.ReceivedAtUtc?.ToString("O")"><td>#@s.SignalId</td><td>@s.Type</td><td>@s.Governorate</td><td>@s.DetectionLocal.ToString("yyyy-MM-dd HH:mm")</td><td>@s.VerificationLocal.ToString("yyyy-MM-dd HH:mm")</td><td><partial name="_SignalAction" model="s"/></td></tr>
+        }
+        </tbody></table></div>
+    }
+    @if(Model.Signals.Count==0){<p class="muted" id="ebs-empty-results">لا توجد إشارات تطابق البحث والفلاتر الحالية.</p>}
+    <nav class="pagination ebs-pagination" aria-label="صفحات نتائج استقبال الأحداث">
+        @if(currentPage>1){<a href="@PageUrl(1)" aria-label="الصفحة الأولى">الأولى</a><a href="@PageUrl(currentPage-1)" rel="prev">السابق</a>}
+        @for(var index=Math.Max(1,currentPage-2);index<=Math.Min(Model.PageCount,currentPage+2);index++){
+            if(index==currentPage){<span aria-current="page" class="badge">@index</span>}else{<a href="@PageUrl(index)">@index</a>}
+        }
+        @if(currentPage<Model.PageCount){<a href="@PageUrl(currentPage+1)" rel="next">التالي</a><a href="@PageUrl(Model.PageCount)" aria-label="الصفحة الأخيرة">الأخيرة</a>}
+        <span class="muted">صفحة @currentPage من @Model.PageCount</span>
+    </nav>
+    <p class="muted">لا تُعدّل هذه الصفحة أي بيانات في EgyptEBS. الاستقبال يحفظ لقطة مصدر واحدة ويمنع التكرار. التعديلات اللاحقة في المصدر لا تُستبدل تلقائياً داخل الحدث.</p>
+</section>

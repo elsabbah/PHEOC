@@ -1,0 +1,3 @@
+@model ReportRow
+@{ViewData["Title"]="تقرير موقفي";}
+<article class="panel print-report"><div class="eyebrow">وزارة الصحة والسكان · مركز طوارئ الصحة العامة</div><h1>تقرير موقفي — @Model.EventTitle</h1><p>الإصدار @Model.Version · @Ui.Time(Model.At) · @(Model.ApprovedBy==null?"غير معتمد":"معتمد")</p><hr/><h2>الملخص التنفيذي</h2><p class="preserve">@Model.Summary</p><h2>التحديات</h2><p class="preserve">@Model.Challenges</p><h2>الإجراءات القادمة</h2><p class="preserve">@Model.NextActions</p><h2>لقطة البيانات التشغيلية وقت الإعداد</h2><pre dir="ltr">@Model.Snapshot</pre><p>أعده: @Model.PreparedBy · اعتمده: @(Model.ApprovedBy??"—")</p><button class="primary no-print" type="button" data-print>طباعة / حفظ PDF</button></article>

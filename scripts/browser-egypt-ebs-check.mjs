@@ -1,0 +1,52 @@
+import {chromium} from 'playwright';
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const base='http://localhost:5268';
+const secrets=JSON.parse(fs.readFileSync(path.join(process.env.APPDATA,'Microsoft/UserSecrets/PHEOC-OMS-PHEOC2-Development/secrets.json'),'utf8').replace(/^\uFEFF/,''));
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+const page=await browser.newPage({viewport:{width:1440,height:1000}});
+const errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push({text:m.text(),url:m.location().url,page:page.url()});});
+let requests=0;page.on('request',r=>{if(r.url().includes('/EgyptEbs/Status'))requests++;});
+fs.mkdirSync('artifacts/browser',{recursive:true});
+try{
+ await page.goto(base+'/Account/Login');
+ await page.locator('[name=UserName]').fill(secrets['Bootstrap:UserName']);
+ await page.locator('[name=Password]').fill(secrets['Bootstrap:Password']);
+ await page.locator('button.primary').click();await page.waitForURL(base+'/');
+ errors.length=0; // This check covers EgyptEbs; dashboard checks are separate.
+ await page.goto(base+'/EgyptEbs');
+ await page.waitForFunction(()=>document.querySelector('#ebs-live-status')?.textContent.includes('كل 15 ثانية'));
+ const live=await (await page.request.get(base+'/EgyptEbs/Status')).json();
+ assert(live.automatic);assert(!live.lastError);
+ assert(Date.parse(live.serverUtcNow)-Date.parse(live.lastSuccessAt)<180000);
+ const initial=requests;
+ await page.waitForFunction(n=>document.querySelector('#ebs-clock')?.textContent,initial);
+ const clock=await page.locator('#ebs-clock').innerText();
+ await page.waitForTimeout(16500);
+ assert(requests>initial,'The real 15-second polling timer must issue another status request');
+ assert.notEqual(await page.locator('#ebs-clock').innerText(),clock);
+ await page.screenshot({path:'artifacts/browser/egypt-ebs-live-desktop.png'});
+ const format=new Intl.DateTimeFormat('ar-EG',{timeZone:'Africa/Cairo',dateStyle:'short',timeStyle:'medium'});
+ let mocked={...live,serverUtcNow:new Date().toISOString(),lastSuccessAt:new Date().toISOString()};
+ await page.route('**/EgyptEbs/Status',r=>r.fulfill({json:mocked}));
+ await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ await page.waitForFunction(expected=>document.querySelector('#ebs-last-success').textContent===expected,format.format(new Date(mocked.lastSuccessAt)));
+ mocked={...mocked,lastSuccessAt:new Date(Date.now()-240000).toISOString()};
+ await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ await page.waitForFunction(()=>document.querySelector('#ebs-live-status').textContent.includes('آخر 3 دقائق'));
+ mocked={...mocked,lastError:'اختبار تعذر الاتصال بالمصدر'};
+ await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ await page.waitForFunction(()=>document.querySelector('#ebs-error').textContent==='اختبار تعذر الاتصال بالمصدر');
+ assert(await page.locator('#ebs-error').isVisible());
+ await page.unroute('**/EgyptEbs/Status');await page.evaluate(()=>window.dispatchEvent(new Event('online')));
+ await page.waitForFunction(()=>document.querySelector('#ebs-error').hidden);
+ await page.setViewportSize({width:390,height:844});
+ await page.waitForTimeout(300); // Allow the sidebar's responsive transition to finish.
+ assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ assert(await page.locator('#sidebar').evaluate(e=>e.getBoundingClientRect().left>=innerWidth-1));
+ await page.screenshot({path:'artifacts/browser/egypt-ebs-live-mobile.png'});
+ assert.deepEqual(errors,[]);
+ const result={polling:'PASS (real 15-second interval)',clock:'PASS',freshStatus:'PASS',staleWarning:'PASS (mock response)',sourceError:'PASS (mock response)',mobile:'PASS',javascriptErrors:errors.length,mode:'Read-only; reception setting and source unchanged'};
+ fs.writeFileSync('artifacts/browser/egypt-ebs-live-results.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));
+}finally{await browser.close();}

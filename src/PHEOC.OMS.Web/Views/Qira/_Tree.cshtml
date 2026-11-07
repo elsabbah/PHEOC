@@ -1,0 +1,69 @@
+@model QiraDetail
+@using PHEOC.OMS.Domain.Qira
+@using System.Globalization
+@{
+ var path=Model.Evaluation.Path;var requested=(string?)ViewBag.Node;
+ var selected=requested!=null&&path.Contains(requested)?requested:Model.Evaluation.Next;
+ var currentRisk=Model.Assessment.Risk??Model.Evaluation.Risk;
+ var answers=Model.Answers.Where(a=>a.Active&&path.Contains(a.Node)).ToDictionary(a=>a.Node);
+ var position=selected==null?path.Count:path.ToList().IndexOf(selected);
+ var previous=position>0?path[position-1]:null;
+}
+<section class="qira-tree" id="qira-tree" data-qira-tree aria-label="شجرة قرار QIRA">
+ <div class="tree-toolbar"><div><h2>شجرة تقييم المخاطر</h2><p>اتبع الأسهم؛ أجب من بطاقة السؤال المحدد بإطار أزرق.</p></div><div class="tree-controls">
+  <div role="group" aria-label="اتجاه الشجرة"><button type="button" data-tree-direction="horizontal" aria-pressed="true">أفقية</button><button type="button" data-tree-direction="vertical" aria-pressed="false">رأسية</button></div>
+  <label class="check"><input type="checkbox" data-tree-path/>المسار المختار فقط</label>
+  <button type="button" data-tree-zoom="in" aria-label="تكبير الشجرة">＋</button><button type="button" data-tree-zoom="out" aria-label="تصغير الشجرة">−</button><button type="button" data-tree-fit>ملاءمة</button><button type="button" data-tree-current>السؤال الحالي</button>
+ </div></div>
+ <nav class="tree-navigation" aria-label="الرجوع وتعديل إجابات التقييم">
+ @if(Model.Editable){
+  @if(previous!=null){<a class="secondary" data-tree-previous href="/Qira/Details/@Model.Assessment.Id?node=@previous#qira-tree">→ الخطوة السابقة</a>}
+  else{<span class="tree-navigation-start">أنت في أول خطوة</span>}
+  <form asp-controller="Qira" asp-action="Undo" asp-route-id="@Model.Assessment.Id" method="post"><input type="hidden" name="Version" value="@Model.Assessment.Version"/><button type="submit" class="secondary" data-tree-undo disabled="@(answers.Count==0)">↶ إلغاء آخر اختيار</button></form>
+  <small>يمكنك أيضاً الضغط على «تعديل الاختيار» في أي بطاقة أجبت عنها.</small>
+ }else if(Model.Assessment.State>=QiraState.Completed&&Model.Event.Status!=EventStatus.Closed&&Current.Can(Permissions.RiskCreate)&&Current.Can(Permissions.QiraReassess)){
+  <form asp-controller="Qira" asp-action="Start" method="post" data-tree-reassess><input name="eventId" type="hidden" value="@Model.Event.Id"/><input name="previousId" type="hidden" value="@Model.Assessment.Id"/><button type="submit" class="secondary">إعادة التقييم لتعديل الاختيارات</button></form><small>التقييم المكتمل محفوظ؛ التعديل ينشئ إصداراً جديداً.</small>
+ }
+ </nav>
+ <div class="tree-legend"><span class="tree-key selected">المسار المختار</span><span class="tree-key current">السؤال الحالي</span><span class="tree-key">الفروع الأخرى</span></div>
+ <div class="tree-viewport" tabindex="0" aria-label="الشجرة؛ يمكن التمرير والتكبير"><div class="tree-size"><div class="tree-world">
+  @for(var i=0;i<7;i++){
+   var column=i<4?i:i==4?4:i+1;var span=i==4?2:1;
+   var title=i<5?Model.Definition.Axes[i]:i==5?"مستوى الخطورة":"الإجراءات المقترحة";
+   <div class="tree-band tree-axis-@(i+1)" data-band-column="@column" data-band-span="@span"><h3>@title</h3></div>
+  }
+  <svg class="tree-lines" aria-hidden="true"><defs><marker id="qira-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#a6b6c2"/></marker><marker id="qira-arrow-selected" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#087f83"/></marker></defs>
+  @foreach(var node in Model.Definition.Nodes){
+   foreach(var group in Enum.GetValues<QiraChoice>().GroupBy(choice=>QiraTree.Target(node,choice))){
+    var chosen=answers.TryGetValue(node.Id,out var existing)&&group.Contains(existing.Choice);
+    <g class="tree-edge @(chosen?"is-selected":"")" data-from="@node.Id" data-to="@group.Key" data-label="@string.Join(" / ",group.Select(QiraText.Choice))"><path marker-end="url(#@(chosen?"qira-arrow-selected":"qira-arrow"))"/><text><textPath></textPath></text></g>
+   }
+  }
+  @foreach(var risk in Enum.GetValues<QiraRisk>()){<g class="tree-edge @(currentRisk==risk?"is-selected":"")" data-from="@("@"+risk)" data-to="@("actions-"+risk)" data-label=""><path marker-end="url(#@(currentRisk==risk?"qira-arrow-selected":"qira-arrow"))"/><text/></g>}
+  </svg>
+  @foreach(var node in Model.Definition.Nodes){
+   var pos=QiraTree.Position(node);var active=selected==node.Id&&Model.Editable;var visited=path.Contains(node.Id);var saved=answers.GetValueOrDefault(node.Id);
+   <article class="tree-node @(active?"is-current":"") @(saved!=null?"is-answered":"")" data-tree-id="@node.Id" data-column="@pos.Column" data-row="@pos.Row.ToString(CultureInfo.InvariantCulture)" data-on-path="@visited.ToString().ToLowerInvariant()" aria-current="@(active?"step":null)" dir="rtl">
+    <div class="tree-node-heading"><span>السؤال @node.Number</span>@if(active){<strong>أجب هنا</strong>}</div><p>@node.Arabic</p>
+    @if(active){
+    @if(node.Id=="Q1"&&Model.HighThreatHazards.Count==0&&!Model.NovelHazard){<small>لا توجد قائمة أخطار محددة؛ اختر غير معروف.</small>}
+    @if(node.Id=="Q1"&&Model.NovelHazard){<a href="#question" class="tree-change">دوّن سبب اختيار نعم أو لا في الملاحظات</a>}
+    <div class="tree-node-answers" role="group" aria-label="إجابة السؤال @node.Number">@foreach(var choice in Enum.GetValues<QiraChoice>()){
+     var disabled=node.Id=="Q1"&&Model.HighThreatHazards.Count==0&&!Model.NovelHazard&&choice!=QiraChoice.Unknown;
+     <button type="submit" form="qira-answer-form" name="Choice" value="@choice" disabled="@disabled" formnovalidate="@(node.Id=="Q1"&&Model.NovelHazard&&choice==QiraChoice.Unknown)" class="@(saved?.Choice==choice?"chosen":"")">@QiraText.Choice(choice)</button>
+    }</div>}
+    else if(saved!=null){<span class="tree-saved-choice">@QiraText.Choice(saved.Choice)</span>@if(Model.Editable){<a href="/Qira/Details/@Model.Assessment.Id?node=@node.Id#qira-tree" class="tree-change" data-tree-edit="@node.Id">تعديل الاختيار</a>}}
+    else{<small class="tree-waiting">يتحدد الوصول إليه بحسب الإجابات</small>}
+   </article>
+  }
+  @foreach(var risk in Enum.GetValues<QiraRisk>()){
+   var templates=(Model.ActionTemplates??[]).Where(a=>a.Level==risk).ToList();var selectedRisk=currentRisk==risk;
+   <article class="tree-node tree-risk risk-@risk @(selectedRisk?"is-result":"")" data-tree-id="@("@"+risk)" data-column="6" data-row="@((int)risk-1)" data-on-path="@selectedRisk.ToString().ToLowerInvariant()" dir="rtl"><small>مستوى الخطورة</small><strong>@QiraText.Risk(risk)</strong>@if(selectedRisk){<span>نتيجة مسارك</span>}</article>
+   <article class="tree-node tree-actions @(selectedRisk?"is-result":"")" data-tree-id="@("actions-"+risk)" data-column="7" data-row="@((int)risk-1)" data-on-path="@selectedRisk.ToString().ToLowerInvariant()" dir="rtl"><strong>الإجراءات · @QiraText.Risk(risk)</strong>
+   @if(templates.Count>0){<details><summary>@templates.Count إجراءات محددة</summary><ul>@foreach(var action in templates){<li>@action.Title<small>@action.Organization</small></li>}</ul></details>}
+   else{<small>لم تُحدد إجراءات لهذا المستوى في مرجع التقييم.</small>}
+   </article>
+  }
+ </div></div></div>
+ <p class="tree-hint">الفروع والخطوط من إصدار الخوارزمية المرتبط بالتقييم. لا يمكن الإجابة إلا عن سؤال في المسار المتاح.</p>
+</section>

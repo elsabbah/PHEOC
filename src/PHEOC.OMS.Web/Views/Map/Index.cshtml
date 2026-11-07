@@ -1,0 +1,4 @@
+@model IReadOnlyList<EventRow>
+@{ViewData["Title"]="الخريطة التشغيلية";}
+<div class="page-heading"><div><div class="eyebrow">التوزيع المكاني للأحداث</div><h1>الخريطة التشغيلية</h1><p>مواقع الأحداث ذات الإحداثيات الموثقة ضمن نطاق صلاحيتك. لا تتضمن أحداث التدريب.</p></div><span class="badge">@Model.Count موقع</span></div><section class="panel"><div id="event-map" aria-label="خريطة مواقع الأحداث في مصر"></div><p class="muted map-caption">مكتبة Leaflet وطبقة الحدود مستضافتان محلياً. المصدر: Natural Earth؛ الحدود هنا للعرض العام ولا تمثل مرجعاً إدارياً رسمياً.</p></section><section class="panel"><h2>الأحداث على الخريطة</h2><partial name="_EventTable" model="Model"/></section>
+@section Scripts {<script src="~/js/vendor/leaflet/leaflet.js" defer></script><script src="~/js/map.js" defer></script>}

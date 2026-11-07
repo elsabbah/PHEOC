@@ -1,0 +1,14 @@
+@model UserPermissionEdit
+@{ViewData["Title"]="تعديل الصلاحيات";var governorates=(IReadOnlyList<Lookup>)ViewBag.Governorates;var defaults=Model.Roles.SelectMany(RolePermissionDefaults.For).Distinct().Where(p=>!Model.GovernorateId.HasValue||!RolePermissionDefaults.RequiresCentralScope(p)).ToArray();}
+<div class="page-heading"><div><div class="eyebrow">إدارة المستخدمين</div><h1>تعديل صلاحيات @Model.Name</h1><p>@string.Join("، ",Model.Roles) · @(Model.GovernorateId.HasValue?governorates.FirstOrDefault(g=>g.Id==Model.GovernorateId)?.Name:"مركزي — جميع المحافظات")</p></div><a class="secondary" href="/Admin/Users">العودة للمستخدمين</a></div>
+<section class="panel"><p>الاختيارات أدناه هي الصلاحيات الفعلية للحساب. أضف أو ألغِ ما تحتاجه ثم احفظ.</p>
+<form asp-action="UpdatePermissions" asp-route-id="@Model.Id" method="post" class="stack" data-user-permissions-edit data-defaults="@string.Join(",",defaults)" data-self="@((Model.Id==Current.Id).ToString().ToLowerInvariant())">
+<input type="hidden" name="Version" value="@Model.Version"/>
+<div class="section-heading"><p class="muted" data-edit-permission-summary role="status" aria-live="polite"></p><button type="button" class="secondary" data-edit-restore>استعادة صلاحيات الدور المقترحة</button></div>
+<div class="permission-grid">@foreach(var permission in Permissions.All){var blocked=Model.GovernorateId.HasValue&&RolePermissionDefaults.RequiresCentralScope(permission);<label class="check"><input type="checkbox" name="Permissions" value="@permission" checked="@Model.Permissions.Contains(permission)" disabled="@blocked"/><span dir="ltr">@permission</span></label>}</div>
+<p class="muted">Events.View مطلوبة لفتح التطبيق. للمراجعة اختر QIRA.Review، وللاعتماد اختر RiskAssessment.Approve.</p>
+@if(Model.Id==Current.Id){<p class="notice">عند تعديل حسابك، يجب الاحتفاظ بصلاحيتي Events.View وAdmin.ManageUsers.</p>}
+<p class="muted">بعد الحفظ تصبح الاختيارات هي صلاحيات هذا الحساب. تسجيل دخول جديد يستخدمها مباشرة؛ الجلسات السابقة يعاد التحقق منها خلال دقيقة عند الطلب التالي وتحتاج تسجيل الدخول مجدداً.</p>
+<div class="actions"><button type="submit" class="primary">حفظ الصلاحيات</button><a class="secondary" href="/Admin/Users">إلغاء</a></div>
+</form></section>
+@section Scripts{<script src="~/js/user-permissions.js" asp-append-version="true" defer></script>}

@@ -1,0 +1,19 @@
+@model QiraDetail
+@{var ready=!string.IsNullOrWhiteSpace(Model.Population)&&!string.IsNullOrWhiteSpace(Model.TimeWindow);}
+@if(Model.Editable){
+<form asp-controller="Qira" asp-action="Scope" asp-route-id="@Model.Assessment.Id" method="post" class="stack qira-form">
+ <input name="Version" type="hidden" value="@Model.Assessment.Version"/>
+ <div class="form-grid">
+  <label>من يشمله التقييم؟<input name="Population" value="@Model.Population" required maxlength="1000" placeholder="مثال: سكان المنطقة المتأثرة"/></label>
+  <label>ما الفترة التي تقيّم مخاطرها؟<input name="TimeWindow" value="@Model.TimeWindow" required maxlength="500" placeholder="حدد الفترة محل التقييم"/></label>
+ </div>
+ <label>الخطر محل التقييم<input name="Hazard" value="@Model.Hazard" list="qira-hazards" maxlength="160"/><datalist id="qira-hazards">@foreach(var hazard in Model.HighThreatHazards){<option value="@hazard"></option>}</datalist></label>
+ <details class="qira-more"><summary>تفاصيل إضافية عن النطاق والحالات</summary><div class="stack">
+  <label>نطاق التقييم<textarea name="Scope" required maxlength="2000">@Model.Scope</textarea></label>
+  <label class="check"><input type="checkbox" name="NovelHazard" value="true" checked="@Model.NovelHazard"/>خطر مستجد / مجهول — يحدد الفريق مساره مع توثيق السبب</label>
+  <div class="form-grid"><label>دخول المستشفيات (اختياري)<input name="Hospitalizations" type="number" min="0" value="@Model.Hospitalizations"/></label><label>الرعاية المركزة (اختياري)<input name="IcuAdmissions" type="number" min="0" value="@Model.IcuAdmissions"/></label></div>
+ </div></details>
+ @if(ready){<small class="muted">تغيير الخطر يعيد الأسئلة إلى البداية مع الاحتفاظ بسجل الإجابات السابق.</small>}
+ <button type="submit" class="primary">@(ready?"حفظ بيانات التقييم":"ابدأ الأسئلة ←")</button>
+</form>
+}else{<dl class="qira-scope"><dt>النطاق</dt><dd>@Model.Scope</dd><dt>السكان</dt><dd>@Model.Population</dd><dt>الفترة</dt><dd>@Model.TimeWindow</dd><dt>الخطر</dt><dd>@Model.Hazard</dd><dt>المستشفيات / الرعاية</dt><dd>@(Model.Hospitalizations?.ToString()??"غير مسجل") / @(Model.IcuAdmissions?.ToString()??"غير مسجل")</dd></dl>}

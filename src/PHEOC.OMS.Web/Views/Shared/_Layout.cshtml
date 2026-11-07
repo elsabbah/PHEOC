@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>@ViewData["Title"] — PHEOC-OMS</title><link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/><link rel="stylesheet" href="~/css/event-alerts.css" asp-append-version="true"/><link rel="stylesheet" href="~/js/vendor/leaflet/leaflet.css"/><link rel="icon" type="image/svg+xml" href="/icons/app.svg"/><link rel="manifest" href="/manifest.webmanifest"/><meta name="theme-color" content="#102c42"/><link rel="stylesheet" href="~/css/qira.css" asp-append-version="true" /><link rel="stylesheet" href="~/css/qira-tree.css" asp-append-version="true" /></head>
+<body>
+@if(User.Identity?.IsAuthenticated==true){
+<aside class="sidebar" id="sidebar"><a class="brand" href="/"><span class="brand-mark">✚</span><span><strong>PHEOC<span class="gold"> / </span>OMS</strong><small>مركز طوارئ الصحة العامة</small></span></a><div class="nav-label">مساحة العمليات</div><nav aria-label="القائمة الرئيسية">
+<a href="/" data-nav="Dashboard">◈ <span>لوحة القيادة</span></a><a href="/Events" data-nav="Events">▤ <span>سجل الأحداث</span></a>
+@if(Current.Can(Permissions.TeamsView)){<a href="/Teams" data-nav="Teams">♧ <span>فرق الاستجابة السريعة</span></a>}
+@if(Current.Can(Permissions.InventoryView)){<a href="/Logistics">▦ <span>الإمداد والمركبات</span></a><a href="/Inventory" data-nav="Inventory">▦ <span>الموارد والمخزون</span></a>}
+@if(Current.Can(Permissions.FieldManage)){<a href="/Field" data-nav="Field">⌖ <span>العمليات الميدانية</span></a>}
+@if(Current.Can(Permissions.SensitiveView)){<a href="/Health" data-nav="Health">⊕ <span>المخالطون والعينات</span></a>}
+@if(Current.Can(Permissions.ReportsView)){<a href="/Reports" data-nav="Reports">▥ <span>التقارير الموقفية</span></a><a href="/Analytics">◷ <span>مؤشرات 7-1-7</span></a><a href="/Dashboard/Metrics">◷ <span>مؤشرات الأداء</span></a>}
+<a href="/Map">⌖ <span>الخريطة التشغيلية</span></a><a href="/Communications">◉ <span>الإشعارات وSLA</span></a><a href="/Events/Improvements">↗ <span>خطة التحسين AAR</span></a><a href="/Dashboard/Wall">▣ <span>شاشة غرفة العمليات</span></a>
+@if(Current.Can(Permissions.AdminSettings)){<div class="nav-label">إدارة المنظومة</div><a href="/EgyptEbs">⇄ <span>استقبال EgyptEBS</span></a><a href="/Policies">⚙ <span>سياسات الإغلاق</span></a><a href="/Admin/Settings">⚙ <span>الإعدادات</span></a><a href="/Admin/Integration">⇄ <span>مراقبة التكامل</span></a>}
+@if(Current.Can(Permissions.AdminUsers)){<a href="/Admin/Users">♙ <span>المستخدمون والصلاحيات</span></a>}
+@if(Current.Can(Permissions.AuditView)){<a href="/Admin/Audit">≡ <span>سجل التدقيق</span></a>}
+</nav><div class="sidebar-footer"><span class="live-dot"></span> وزارة الصحة والسكان<br/><small>جمهورية مصر العربية</small></div></aside>
+}
+<div class="@(User.Identity?.IsAuthenticated==true?"shell":"guest-shell")">
+@if(User.Identity?.IsAuthenticated==true){<header class="topbar"><div class="topbar-start"><button type="button" class="menu-toggle" aria-label="فتح القائمة" aria-controls="sidebar" aria-expanded="false">☰</button><span class="ministry">منظومة إدارة وتشغيل مركز طوارئ الصحة العامة</span></div><div class="user-tools"><partial name="_EventAlerts"/><span class="connection" id="connection">● اتصال بالمنظومة</span><span class="user-name">@User.Identity.Name</span><form asp-controller="Account" asp-action="Logout" method="post" data-signout data-subject="@Current.Id"><button class="text-button">خروج</button></form></div></header>}
+<main id="main-content">
+@if(TempData["Success"] is string message){<div class="notice success" role="status">✓ @message</div>}
+@RenderBody()
+</main><footer class="page-footer">PHEOC-OMS <span>من الإشارة إلى الاستجابة والإغلاق</span><span>الأوقات المعروضة بتوقيت مصر</span></footer>
+</div><script src="~/js/vendor/signalr.min.js" defer></script><script src="~/js/site.js" asp-append-version="true" defer></script><script src="~/js/event-alerts.js" asp-append-version="true" defer></script>@await RenderSectionAsync("Scripts",required:false)
+</body></html>
