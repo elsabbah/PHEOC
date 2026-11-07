@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PHEOC-OMS
 
 تطبيق ASP.NET Core MVC عربي RTL لإدارة عمليات طوارئ الصحة العامة، مرتبط بـSQL Server 2016، مع موصل قراءة فعلي لـEgyptEBS.
@@ -56,3 +57,6 @@ powershell -ExecutionPolicy Bypass -File scripts/Test-Application.ps1 -Browser
 اختبارات SQL التشغيلية تُرجع معاملاتها ولا تترك بياناتها. اختبارات المتصفح تحفظ أحداثاً تدريبية واضحة مستبعدة من المؤشرات، وتترك سجلاتها للمراجعة. لا تُحذف بيانات أو سجلات تدقيق تلقائياً.
 
 راجع [التقدم والحدود الفعلية](docs/DevelopmentProgress.md)، [خريطة الكود](docs/CodebaseMap.md)، [الأمن](docs/Security.md)، و[دليل المستخدم](docs/UserGuide.md). لم يُنفذ نشر إنتاجي على IIS أو إعداد مزودي SMS والبريد وPush بعد؛ حزمة التشغيل لا تعني اعتماد الجاهزية للإنتاج.
+=======
+# PHEOC
+>>>>>>> 050a2c2c0d4e23ea6c6d25e1608d65498740a7f8
