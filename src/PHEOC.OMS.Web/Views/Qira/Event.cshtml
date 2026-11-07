@@ -3,8 +3,22 @@
 @{ViewData["Title"]="تقييمات QIRA";var open=Model.Event.Status!=EventStatus.Closed;}
 <div class="page-heading"><div><div class="eyebrow">QIRA · سجل الإصدارات</div><h1>@Model.Event.Title</h1><p>كل إعادة تقييم سجل جديد مرتبط بسابقه؛ لا تتغير النتائج المكتملة.</p></div><a class="secondary" href="/Events/Details/@Model.Event.Id#risk">العودة إلى الحدث</a></div>
 @if(open&&Current.Can(Permissions.RiskCreate)){<form asp-action="Start" method="post"><input name="eventId" type="hidden" value="@Model.Event.Id"/><button class="primary">بدء / متابعة تقييم</button></form>}
-<section class="panel"><h2>التقييمات</h2>@if(Model.Assessments.Count==0){<p class="empty">لم يبدأ تقييم QIRA بعد.</p>}
-@foreach(var a in Model.Assessments){<article class="task-card"><div class="section-heading"><a href="/Qira/Details/@a.Id"><strong>الإصدار @a.Revision</strong></a><span class="badge risk-@a.Risk">@QiraText.Risk(a.Risk)</span></div><p>@QiraText.State(a.State) · الثقة: @QiraText.Confidence(a.Confidence)</p><small>@a.Assessor · @Ui.Time(a.StartedAt) · @a.Algorithm</small>@if(a.PreviousId.HasValue){<p><a href="/Qira/Details/@a.PreviousId">التقييم السابق</a></p>}
-@if(open&&a.State>=QiraState.Completed&&Current.Can(Permissions.QiraReassess)&&Current.Can(Permissions.RiskCreate)){<form asp-action="Start" method="post"><input name="eventId" type="hidden" value="@Model.Event.Id"/><input name="previousId" type="hidden" value="@a.Id"/><button class="secondary">إعادة التقييم بإصدار جديد</button></form>}</article>}
+<section class="panel qira-version-board"><h2>التقييمات</h2>
+<ul class="qira-stage-key" aria-label="دليل ألوان مراحل الإصدار">
+@foreach(var state in new[]{QiraState.New,QiraState.InProgress,QiraState.Completed,QiraState.Reviewed,QiraState.Approved}){<li class="qira-stage-@QiraText.StageClass(state)"><span class="qira-stage-badge">@QiraText.StageLabel(state)</span></li>}
+</ul>
+<p class="muted">لون الإطار والشارة يوضح مرحلة الإصدار؛ درجة الخطورة موضحة بشارة مستقلة. يتاح حذف مسودتك قبل إكمال التقييم فقط.</p>
+@if(Model.Assessments.Count==0){<p class="empty">لم يبدأ تقييم QIRA بعد.</p>}
+@foreach(var a in Model.Assessments){
+<article class="task-card qira-version-card qira-stage-@QiraText.StageClass(a.State)" data-qira-version="@a.Id" data-stage="@QiraText.StageClass(a.State)">
+<div class="section-heading"><a href="/Qira/Details/@a.Id"><strong>الإصدار @a.Revision</strong></a><span class="qira-stage-badge">@QiraText.StageLabel(a.State)</span></div>
+<p>@QiraText.State(a.State)</p>
+<div class="actions"><span class="badge risk-@a.Risk">الخطورة: @QiraText.Risk(a.Risk)</span><span>الثقة: @QiraText.Confidence(a.Confidence)</span></div>
+<p class="qira-version-meta">@a.Assessor · @Ui.Time(a.StartedAt) · @a.Algorithm</p>
+@if(a.PreviousId.HasValue){<p><a href="/Qira/Details/@a.PreviousId">التقييم السابق</a></p>}
+<div class="actions"><a class="secondary" href="/Qira/Details/@a.Id">فتح الإصدار</a>
+@if(open&&a.CanDelete){<a class="secondary qira-delete-link" href="/Qira/Delete/@a.Id">حذف المسودة</a>}
+@if(open&&a.State>=QiraState.Completed&&Current.Can(Permissions.QiraReassess)&&Current.Can(Permissions.RiskCreate)){<form asp-action="Start" method="post"><input name="eventId" type="hidden" value="@Model.Event.Id"/><input name="previousId" type="hidden" value="@a.Id"/><button class="secondary">إعادة التقييم بإصدار جديد</button></form>}
+</div></article>}
 </section>
 @if(Model.Legacy.Count>0){<details class="panel"><summary>أرشيف تقييمات الطريقة السابقة (@Model.Legacy.Count)</summary><p class="muted">محفوظة للقراءة فقط؛ لا تمثل نتائج QIRA.</p><partial name="_Activity" model="Model.Legacy"/></details>}

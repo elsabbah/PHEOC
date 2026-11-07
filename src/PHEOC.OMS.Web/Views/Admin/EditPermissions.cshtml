@@ -1,6 +1,6 @@
 @model UserPermissionEdit
 @{ViewData["Title"]="تعديل الصلاحيات";var governorates=(IReadOnlyList<Lookup>)ViewBag.Governorates;var defaults=Model.Roles.SelectMany(RolePermissionDefaults.For).Distinct().Where(p=>!Model.GovernorateId.HasValue||!RolePermissionDefaults.RequiresCentralScope(p)).ToArray();}
-<div class="page-heading"><div><div class="eyebrow">إدارة المستخدمين</div><h1>تعديل صلاحيات @Model.Name</h1><p>@string.Join("، ",Model.Roles) · @(Model.GovernorateId.HasValue?governorates.FirstOrDefault(g=>g.Id==Model.GovernorateId)?.Name:"مركزي — جميع المحافظات")</p></div><a class="secondary" href="/Admin/Users">العودة للمستخدمين</a></div>
+<div class="page-heading permissions-heading"><div><div class="eyebrow">إدارة المستخدمين</div><h1>تعديل صلاحيات @Model.Name</h1><p>@string.Join("، ",Model.Roles) · @(Model.GovernorateId.HasValue?governorates.FirstOrDefault(g=>g.Id==Model.GovernorateId)?.Name:"مركزي — جميع المحافظات")</p></div><a class="secondary" href="/Admin/Users">العودة للمستخدمين</a></div>
 <section class="panel"><p>الاختيارات أدناه هي الصلاحيات الفعلية للحساب. أضف أو ألغِ ما تحتاجه ثم احفظ.</p>
 <form asp-action="UpdatePermissions" asp-route-id="@Model.Id" method="post" class="stack" data-user-permissions-edit data-defaults="@string.Join(",",defaults)" data-self="@((Model.Id==Current.Id).ToString().ToLowerInvariant())">
 <input type="hidden" name="Version" value="@Model.Version"/>

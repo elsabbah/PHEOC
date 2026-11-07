@@ -53,7 +53,7 @@ public class QiraBrowserTests
         using var process=Process.Start(start)!;var stdout=process.StandardOutput.ReadToEndAsync();var stderr=process.StandardError.ReadToEndAsync();using var timeout=new CancellationTokenSource(TimeSpan.FromSeconds(150));
         try{await process.WaitForExitAsync(timeout.Token);}catch(OperationCanceledException){process.Kill(true);throw;}
         Assert.True(process.ExitCode==0,(await stdout)+Environment.NewLine+(await stderr));
-        db.ChangeTracker.Clear();Assert.Equal(2,await db.QiraAssessments.CountAsync(x=>x.EventId==eventId));Assert.Single(await db.Tasks.Where(x=>x.EventId==eventId).ToListAsync());
+        db.ChangeTracker.Clear();Assert.Equal(3,await db.QiraAssessments.CountAsync(x=>x.EventId==eventId));Assert.Single(await db.QiraAssessments.Where(x=>x.EventId==eventId&&x.State==PHEOC.OMS.Domain.Qira.QiraState.Deleted).ToListAsync());Assert.Single(await db.Tasks.Where(x=>x.EventId==eventId).ToListAsync());
         await transaction.RollbackAsync();
     }
 }

@@ -1,0 +1,12 @@
+@model UserPermissionEdit
+@{ViewData["Title"]="تأكيد حذف المستخدم";}
+<div class="page-heading permissions-heading"><div><h1>حذف المستخدم</h1><p>@Model.Name</p></div></div>
+<section class="panel stack">
+<p>سيُحذف الحساب إدارياً من قائمة المستخدمين ويُمنع تسجيل دخوله. تبقى سجلاته السابقة وقراراته وسجلات التدقيق محفوظة. لا يمكن إعادة تفعيله من شاشة المستخدمين.</p>
+@if(Model.Id==Current.Id){<p class="notice">لا يمكنك حذف حسابك الحالي.</p>}
+else{<form asp-action="DeleteUser" asp-route-id="@Model.Id" method="post" data-user-delete>
+<input type="hidden" name="Version" value="@Model.Version"/>
+<button class="primary" type="submit">تأكيد حذف المستخدم</button>
+</form>}
+<a class="secondary" href="/Admin/Users">إلغاء والعودة للمستخدمين</a>
+</section>

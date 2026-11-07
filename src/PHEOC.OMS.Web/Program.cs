@@ -30,6 +30,7 @@ builder.Services.AddSingleton<IEgyptEbsServerStore>(new EgyptEbsServerFileStore(
 builder.Services.AddSingleton<IEgyptEbsConnectionSource,EgyptEbsConnectionSource>();
 builder.Services.AddSingleton<IEgyptEbsConnectionProbe,EgyptEbsConnectionProbe>();
 builder.Services.AddScoped<IEgyptEbsServerSettings,EgyptEbsServerSettings>();
+builder.Services.AddScoped<IEgyptEbsKpiDateSource,EgyptEbsKpiDateSource>();
 builder.Services.AddScoped<IAnalyticsService,OmsService>();
 builder.Services.AddScoped<IPolicyService,OmsService>();
 builder.Services.AddScoped<ILogisticsService,OmsService>();

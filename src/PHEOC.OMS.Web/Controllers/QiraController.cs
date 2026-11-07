@@ -7,6 +7,17 @@ public class QiraController(IQiraService service,ICoordinationService coordinati
 {
     public async Task<IActionResult> Event(long id)=>View(await service.QiraForEvent(id));
     public async Task<IActionResult> Details(long id,string? node=null){ViewBag.Node=node;return View(await service.Qira(id));}
+    [HttpGet,Authorize(Policy=Permissions.RiskCreate)]public async Task<IActionResult> Delete(long id)
+    {
+        var model=await service.Qira(id);
+        if(!model.Editable||!model.Assessment.CanDelete)throw new AccessDeniedException();
+        return View(model);
+    }
+    [HttpPost,ActionName("Delete"),Authorize(Policy=Permissions.RiskCreate)]public async Task<IActionResult> ConfirmDelete(long id,VersionInput input)
+    {
+        CheckInput();var eventId=await service.DeleteQiraDraft(id,input);TempData["Success"]="تم حذف المسودة مع حفظ سجل التدقيق.";
+        return RedirectToAction(nameof(Event),new{id=eventId});
+    }
     [HttpPost,Authorize(Policy=Permissions.RiskCreate)]public async Task<IActionResult> Start(long eventId,long? previousId)
     {CheckInput();return RedirectToAction(nameof(Details),new{id=await service.StartQira(eventId,previousId)});}
     [HttpPost]public Task<IActionResult> Scope(long id,QiraScopeInput input)=>Command(()=>service.SaveQiraScope(id,input),"Qira","Details",id);

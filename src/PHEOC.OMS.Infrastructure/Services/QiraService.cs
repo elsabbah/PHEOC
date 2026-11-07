@@ -13,11 +13,11 @@ namespace PHEOC.OMS.Infrastructure.Services;
 
 public partial class OmsService:IQiraService
 {
-    private static QiraAssessmentRow QiraRow(QiraAssessment a)=>new(a.Id,a.Revision,a.State,a.Risk,a.Confidence,a.AssessorName,a.CreatedAt,a.CompletedAt,a.Definition.Code,a.PreviousId,Version(a));
+    private QiraAssessmentRow QiraRow(QiraAssessment a)=>new(a.Id,a.Revision,a.State,a.Risk,a.Confidence,a.AssessorName,a.CreatedAt,a.CompletedAt,a.Definition.Code,a.PreviousId,Version(a),a.AssessedBy==user.Id&&user.Can(Permissions.RiskCreate)&&(a.State is QiraState.New or QiraState.InProgress)&&a.CompletedAt==null&&a.Risk==null&&a.ReviewedAt==null&&a.ApprovedAt==null);
     private async Task<QiraAssessment> LoadQira(long id)
     {
         Demand(Permissions.EventsView);
-        var a=await db.QiraAssessments.Include(x=>x.Definition).Include(x=>x.Policy).SingleOrDefaultAsync(x=>x.Id==id)??throw new KeyNotFoundException();
+        var a=await db.QiraAssessments.Include(x=>x.Definition).Include(x=>x.Policy).SingleOrDefaultAsync(x=>x.Id==id&&x.State!=QiraState.Deleted)??throw new KeyNotFoundException();
         await Load(a.EventId);return a;
     }
     private async Task<QiraAssessment> EditQira(long id,string version)
@@ -31,13 +31,13 @@ public partial class OmsService:IQiraService
     private static QiraEvaluation Evaluate(QiraAssessment a,IEnumerable<QiraAnswer> answers)=>QiraAlgorithm.Evaluate(QiraAlgorithm.Read(a.Definition.DocumentJson),answers.Where(x=>x.Active).ToDictionary(x=>x.Node,x=>x.Choice));
     private async Task<QiraEventSummary> QiraSummary(long eventId)
     {
-        var rows=await db.QiraAssessments.Include(x=>x.Definition).AsNoTracking().Where(x=>x.EventId==eventId).OrderByDescending(x=>x.Revision).ToListAsync();
+        var rows=await db.QiraAssessments.Include(x=>x.Definition).AsNoTracking().Where(x=>x.EventId==eventId&&x.State!=QiraState.Deleted).OrderByDescending(x=>x.Revision).ToListAsync();
         return new(eventId,rows.Count>0?QiraRow(rows[0]):null,rows.FirstOrDefault(x=>x.State==QiraState.Approved) is {} approved?QiraRow(approved):null);
     }
     public async Task<QiraEventBoard> QiraForEvent(long eventId)
     {
         Demand(Permissions.EventsView);var e=await Load(eventId);await db.Entry(e).Reference(x=>x.Governorate).LoadAsync();
-        var rows=await db.QiraAssessments.Include(x=>x.Definition).AsNoTracking().Where(x=>x.EventId==eventId).OrderByDescending(x=>x.Revision).ToListAsync();
+        var rows=await db.QiraAssessments.Include(x=>x.Definition).AsNoTracking().Where(x=>x.EventId==eventId&&x.State!=QiraState.Deleted).OrderByDescending(x=>x.Revision).ToListAsync();
         var legacy=await db.RiskAssessments.AsNoTracking().Where(x=>x.EventId==eventId).OrderByDescending(x=>x.Id).Select(x=>new ActivityRow(x.Id,"تقييم مؤرشف",x.Level+" — "+x.Rationale,x.AssessedBy,x.CreatedAt)).ToListAsync();
         return new(Row(e),rows.Select(QiraRow).ToList(),legacy);
     }
@@ -112,6 +112,18 @@ public partial class OmsService:IQiraService
         last!.Active=false;a.State=QiraState.InProgress;
         QiraLog(a,"إلغاء آخر اختيار",new{last.Node,last.Choice,last.Notes,last.Source,last.Evidence,last.AttachmentId});
         await db.SaveChangesAsync();
+    }
+    public async Task<long> DeleteQiraDraft(long id,VersionInput input)
+    {
+        Validate(input);
+        await using var tx=db.Database.CurrentTransaction==null?await db.Database.BeginTransactionAsync(IsolationLevel.Serializable):null;
+        var a=await EditQira(id,input.Version);
+        Require((a.State is QiraState.New or QiraState.InProgress)&&a.CompletedAt==null&&a.Risk==null&&a.ReviewedAt==null&&a.ReviewedBy==null&&a.ApprovedAt==null&&a.ApprovedBy==null,"يمكن حذف المسودات التي لم يكتمل تقييمها أو مراجعتها أو اعتمادها فقط.");
+        Require(!await db.QiraAssessments.AnyAsync(x=>x.PreviousId==id)&&!await db.QiraActions.AnyAsync(x=>x.AssessmentId==id),"الإصدار مرتبط بإصدارات أو إجراءات أخرى ولا يمكن حذفه.");
+        var previousState=a.State;a.State=QiraState.Deleted;
+        QiraLog(a,"حذف مسودة التقييم",new{a.Revision,PreviousState=previousState,Reason="مسودة غير مكتملة؛ محفوظة للتدقيق"});
+        Timeline(await Load(a.EventId),"QiraDraftDeleted","حذف مسودة QIRA إصدار "+a.Revision+" مع حفظ سجل التدقيق");
+        await db.SaveChangesAsync();if(tx!=null)await tx.CommitAsync();return a.EventId;
     }
     public async Task CompleteQira(long id,QiraCompleteInput input)
     {

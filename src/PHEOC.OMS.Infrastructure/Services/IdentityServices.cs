@@ -13,7 +13,7 @@ public class UserAdministration(OmsDbContext db, UserManager<AppUser> manager, I
     private void Demand() { if(!actor.Can(Permissions.AdminUsers)||actor.GovernorateId.HasValue)throw new AccessDeniedException(); }
     public async Task<IReadOnlyList<UserRow>> Users()
     {
-        Demand();var result=new List<UserRow>();foreach(var u in await db.Users.OrderBy(x=>x.UserName).Take(200).ToListAsync())
+        Demand();var result=new List<UserRow>();foreach(var u in await db.Users.Where(u=>!db.UserClaims.Any(c=>c.UserId==u.Id&&c.ClaimType==UserAccountStatus.ClaimType&&c.ClaimValue==UserAccountStatus.Deleted)).OrderBy(x=>x.UserName).Take(200).ToListAsync())
             result.Add(new(u.Id,u.UserName??"",u.GovernorateId,string.Join(", ",await manager.GetRolesAsync(u)),string.Join(", ",await EffectivePermissions(u)),u.LockoutEnd>DateTimeOffset.UtcNow));
         return result;
     }
@@ -30,6 +30,7 @@ public class UserAdministration(OmsDbContext db, UserManager<AppUser> manager, I
     public async Task<UserPermissionEdit> EditPermissions(string id)
     {
         Demand();var user=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();
+        await RequireActiveAccount(user);
         return new(user.Id,user.UserName??"",user.GovernorateId,(await manager.GetRolesAsync(user)).ToArray(),await EffectivePermissions(user),user.ConcurrencyStamp??"");
     }
     public async Task UpdatePermissions(string id,UserPermissionsInput input)
@@ -41,6 +42,7 @@ public class UserAdministration(OmsDbContext db, UserManager<AppUser> manager, I
         OperationalRules.Require(id!=actor.Id||selected.Contains(Permissions.AdminUsers),"لا يمكنك إزالة صلاحية إدارة المستخدمين من حسابك الحالي.");
         await using var tx=db.Database.CurrentTransaction==null?await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable):null;
         var user=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();
+        await RequireActiveAccount(user);
         OperationalRules.Require(input.Version==user.ConcurrencyStamp,"تغيرت بيانات المستخدم؛ أعد تحميل صفحة الصلاحيات قبل الحفظ.");
         OperationalRules.Require(!user.GovernorateId.HasValue||!selected.Any(RolePermissionDefaults.RequiresCentralScope),"الصلاحيات الإدارية والتدقيق تتطلب نطاقاً مركزياً.");
         var before=await EffectivePermissions(user);var claims=await manager.GetClaimsAsync(user);
@@ -51,6 +53,23 @@ public class UserAdministration(OmsDbContext db, UserManager<AppUser> manager, I
         foreach(var granted in selected.Except(before))db.AuditLogs.Add(new(){Actor=actor.Id,Action="PermissionGranted: "+granted,Entity="UserPermissions",EntityId=id});
         foreach(var removed in before.Except(selected))db.AuditLogs.Add(new(){Actor=actor.Id,Action="PermissionRevoked: "+removed,Entity="UserPermissions",EntityId=id});
         db.AuditLogs.Add(new(){Actor=actor.Id,Action="PermissionsUpdated",Entity="UserPermissions",EntityId=id});
+        await db.SaveChangesAsync();if(tx!=null)await tx.CommitAsync();
+    }
+    private async Task RequireActiveAccount(AppUser user)
+    {
+        OperationalRules.Require(!(await manager.GetClaimsAsync(user)).Any(c=>c.Type==UserAccountStatus.ClaimType&&c.Value==UserAccountStatus.Deleted),"الحساب محذوف إدارياً ولا يمكن تعديله أو إعادة تفعيله.");
+    }
+    public async Task Delete(string id,UserAccountDeleteInput input)
+    {
+        Demand();System.ComponentModel.DataAnnotations.Validator.ValidateObject(input,new(input),true);
+        OperationalRules.Require(id!=actor.Id,"لا يمكنك حذف حسابك الحالي.");
+        await using var tx=db.Database.CurrentTransaction==null?await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable):null;
+        var user=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();await RequireActiveAccount(user);
+        OperationalRules.Require(input.Version==user.ConcurrencyStamp,"تغيرت بيانات المستخدم؛ أعد فتح تأكيد الحذف.");
+        Check(await manager.SetLockoutEnabledAsync(user,true));Check(await manager.SetLockoutEndDateAsync(user,DateTimeOffset.MaxValue));
+        Check(await manager.AddClaimAsync(user,new(UserAccountStatus.ClaimType,UserAccountStatus.Deleted)));
+        Check(await manager.UpdateSecurityStampAsync(user));
+        db.AuditLogs.Add(new(){Actor=actor.Id,Action="UserAdministrativelyDeleted",Entity="User",EntityId=id});
         await db.SaveChangesAsync();if(tx!=null)await tx.CommitAsync();
     }
     public async Task Create(UserInput input)
@@ -68,11 +87,11 @@ public class UserAdministration(OmsDbContext db, UserManager<AppUser> manager, I
     private static void Check(IdentityResult result) { if(!result.Succeeded)throw new BusinessRuleException(string.Join("؛ ",result.Errors.Select(x=>x.Description))); }
     public async Task Disable(string id,bool disabled)
     {
-        Demand();OperationalRules.Require(id!=actor.Id,"لا يمكن تعطيل حسابك الحالي.");await using var tx=await db.Database.BeginTransactionAsync();var u=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();Check(await manager.SetLockoutEnabledAsync(u,true));Check(await manager.SetLockoutEndDateAsync(u,disabled?DateTimeOffset.MaxValue:null));Check(await manager.UpdateSecurityStampAsync(u));await tx.CommitAsync();
+        Demand();OperationalRules.Require(id!=actor.Id,"لا يمكن تعطيل حسابك الحالي.");await using var tx=db.Database.CurrentTransaction==null?await db.Database.BeginTransactionAsync():null;var u=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();await RequireActiveAccount(u);Check(await manager.SetLockoutEnabledAsync(u,true));Check(await manager.SetLockoutEndDateAsync(u,disabled?DateTimeOffset.MaxValue:null));Check(await manager.UpdateSecurityStampAsync(u));if(tx!=null)await tx.CommitAsync();
     }
     public async Task ResetPassword(string id,PasswordResetInput input)
     {
-        Demand();System.ComponentModel.DataAnnotations.Validator.ValidateObject(input,new(input),true);await using var tx=await db.Database.BeginTransactionAsync();var u=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();var token=await manager.GeneratePasswordResetTokenAsync(u);Check(await manager.ResetPasswordAsync(u,token,input.Password));Check(await manager.UpdateSecurityStampAsync(u));await tx.CommitAsync();
+        Demand();System.ComponentModel.DataAnnotations.Validator.ValidateObject(input,new(input),true);await using var tx=db.Database.CurrentTransaction==null?await db.Database.BeginTransactionAsync():null;var u=await manager.FindByIdAsync(id)??throw new KeyNotFoundException();await RequireActiveAccount(u);var token=await manager.GeneratePasswordResetTokenAsync(u);Check(await manager.ResetPasswordAsync(u,token,input.Password));Check(await manager.UpdateSecurityStampAsync(u));if(tx!=null)await tx.CommitAsync();
     }
 }
 public static class InitialData

@@ -17,7 +17,17 @@ public partial class OmsService
     {
         Demand(Permissions.ReportsView);var e=await Load(eventId);
         var dates=await db.KpiDateRecords.Where(x=>x.EventId==eventId).OrderByDescending(x=>x.Id).ToListAsync();var milestones=await db.EarlyResponseMilestones.Where(x=>x.EventId==eventId).OrderByDescending(x=>x.Id).ToListAsync();
-        return new(eventId,e.Title,dates.Select(x=>new ActivityRow(x.Id,x.MethodologyVersion,$"النشوء: {x.Emergence} | الاكتشاف: {x.Detection} | الإخطار: {x.Notification} — {x.Evidence}",x.RecordedBy,x.CreatedAt,x.Excluded?"مستبعد":"مشمول")).ToList(),milestones.Select(x=>new ActivityRow(x.Id,SevenOneSeven.Names[x.Action],$"{(x.NotApplicable?"لا ينطبق":x.Date?.ToString()??"غير معروف")} — {x.Evidence}",x.RecordedBy,x.CreatedAt)).ToList(),e.IsTraining);
+        var latest=dates.FirstOrDefault();var current=latest==null?null:new KpiDatesInput{Emergence=latest.Emergence,Detection=latest.Detection,Notification=latest.Notification,Excluded=latest.Excluded,Evidence=latest.Evidence};
+        var hasSource=await db.InboxMessages.AnyAsync(x=>x.EventId==eventId&&x.Source=="EgyptEBS");
+        return new(eventId,e.Title,dates.Select(x=>new ActivityRow(x.Id,x.MethodologyVersion,$"النشوء: {x.Emergence} | الاكتشاف: {x.Detection} | الإخطار: {x.Notification} — {x.Evidence}",x.RecordedBy,x.CreatedAt,x.Excluded?"مستبعد":"مشمول")).ToList(),milestones.Select(x=>new ActivityRow(x.Id,SevenOneSeven.Names[x.Action],$"{(x.NotApplicable?"لا ينطبق":x.Date?.ToString()??"غير معروف")} — {x.Evidence}",x.RecordedBy,x.CreatedAt)).ToList(),e.IsTraining,current,hasSource);
+    }
+    public async Task<EgyptEbsKpiDates> KpiSourceDates(long eventId)
+    {
+        Demand(Permissions.ReportsView);await Load(eventId);
+        var externalId=await db.InboxMessages.Where(x=>x.EventId==eventId&&x.Source=="EgyptEBS").Select(x=>x.ExternalEventId).FirstOrDefaultAsync();
+        Require(int.TryParse(externalId,out var signalId)&&signalId>0,"الحدث غير مرتبط بإشارة EgyptEBS قابلة للقراءة.");
+        Require(kpiSource!=null,"قارئ تواريخ EgyptEBS غير مهيأ.");
+        return await kpiSource!.Read(signalId);
     }
     public async Task RecordKpiDates(long eventId,KpiDatesInput input)
     {

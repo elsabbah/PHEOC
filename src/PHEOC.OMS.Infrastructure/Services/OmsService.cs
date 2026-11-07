@@ -11,7 +11,7 @@ using PHEOC.OMS.Infrastructure.Data;
 using static PHEOC.OMS.Domain.Rules.OperationalRules;
 namespace PHEOC.OMS.Infrastructure.Services;
 
-public partial class OmsService(OmsDbContext db, ICurrentUser user, Microsoft.Extensions.Configuration.IConfiguration? config = null) : IOmsService, ICoordinationService, IAnalyticsService, IPolicyService, ILogisticsService
+public partial class OmsService(OmsDbContext db, ICurrentUser user, Microsoft.Extensions.Configuration.IConfiguration? config = null, IEgyptEbsKpiDateSource? kpiSource = null) : IOmsService, ICoordinationService, IAnalyticsService, IPolicyService, ILogisticsService
 {
     private void Demand(string permission) { if (!user.Can(permission)) throw new AccessDeniedException(); }
     private void Scope(int governorate) { if(user.GovernorateId.HasValue && user.GovernorateId != governorate) throw new AccessDeniedException(); }

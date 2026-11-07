@@ -49,7 +49,7 @@ public class QiraActionUpdate:VersionInput
     [Range(0,100)]public int Progress{get;set;}
     [Required]public string TaskVersion{get;set;}="";
 }
-public record QiraAssessmentRow(long Id,int Revision,QiraState State,QiraRisk? Risk,QiraConfidence? Confidence,string Assessor,DateTime StartedAt,DateTime? CompletedAt,string Algorithm,long? PreviousId,string Version);
+public record QiraAssessmentRow(long Id,int Revision,QiraState State,QiraRisk? Risk,QiraConfidence? Confidence,string Assessor,DateTime StartedAt,DateTime? CompletedAt,string Algorithm,long? PreviousId,string Version,bool CanDelete=false);
 public record QiraEventBoard(EventRow Event,IReadOnlyList<QiraAssessmentRow> Assessments,IReadOnlyList<ActivityRow> Legacy);
 public record QiraEventSummary(long EventId,QiraAssessmentRow? Latest,QiraAssessmentRow? Approved);
 public record QiraAnswerRow(string Node,QiraChoice Choice,string Notes,string Source,string Evidence,long? AttachmentId,bool Active);
@@ -64,6 +64,7 @@ public interface IQiraService
     Task SaveQiraScope(long id,QiraScopeInput input);
     Task SaveQiraAnswer(long id,QiraAnswerInput input);
     Task UndoQiraAnswer(long id,VersionInput input);
+    Task<long> DeleteQiraDraft(long id,VersionInput input);
     Task CompleteQira(long id,QiraCompleteInput input);
     Task ReviewQira(long id,QiraReviewInput input);
     Task ApproveQira(long id,QiraReviewInput input);

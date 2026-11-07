@@ -6,6 +6,8 @@
 
 ## الجداول والمفاتيح
 
+تحديث QIRA في 2026-11-07: يدعم عمود QiraAssessments.State القائم القيمة Deleted=5 لحذف المسودات إدارياً فقط. لا تغيير مخطط أو migration؛ تبقى QiraAnswers وQiraHistories والمرفقات والتدقيق محفوظة، ولا يعاد استخدام Revision. يحمي OmsDbContext السجلات من الحذف الفعلي ومن تغيير المسودة بعد حذفها، وتستبعد خدمة QIRA المحذوفات من السجل والملخص والتحميل المعتاد.
+
 | المجموعة | الجداول الفعلية |
 | --- | --- |
 | Identity | AspNetUsers، AspNetRoles، AspNetUserRoles، AspNetUserClaims، AspNetRoleClaims، AspNetUserLogins، AspNetUserTokens |

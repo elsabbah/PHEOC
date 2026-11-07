@@ -1,0 +1,11 @@
+@model QiraDetail
+@{ViewData["Title"]="حذف مسودة QIRA";}
+<div class="page-heading"><div><div class="eyebrow">QIRA · تأكيد الحذف</div><h1>حذف مسودة الإصدار @Model.Assessment.Revision</h1><p>@Model.Event.Title</p></div></div>
+<section class="panel stack">
+<p>سيُزال هذا الإصدار غير المكتمل من قائمة التقييمات. تُحفظ المسودة وإجاباتها وأدلتها وسجل الحذف للتدقيق، ولا تُعاد أرقام الإصدارات المحذوفة.</p>
+<p class="notice">يمكن حذف المسودات الخاصة بك فقط قبل إكمال التقييم. الإصدارات المكتملة أو المراجَعة أو المعتمدة محمية.</p>
+<form asp-action="Delete" asp-route-id="@Model.Assessment.Id" method="post" data-qira-delete>
+<input type="hidden" name="Version" value="@Model.Assessment.Version"/>
+<div class="actions"><button class="primary qira-delete-button" type="submit">تأكيد حذف المسودة</button><a class="secondary" href="/Qira/Event/@Model.Event.Id">إلغاء والعودة للإصدارات</a></div>
+</form>
+</section>

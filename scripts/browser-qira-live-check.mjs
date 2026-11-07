@@ -15,6 +15,11 @@ try{
  await page.goto(base+'/Events');const link=await page.locator('a[href^="/Events/Details/"]').first().getAttribute('href');assert(link);assert.equal((await page.goto(base+link)).status(),200);
  assert.equal(await page.locator('#risk').getByText('التقييم الأولي السريع للمخاطر',{exact:true}).count(),1);assert.equal(await page.locator('[name=Likelihood],[name=Impact]').count(),0);
  const history=await page.locator('a[href^="/Qira/Event/"]').first().getAttribute('href');assert.equal((await page.goto(base+history)).status(),200);assert.equal(await page.locator('html').getAttribute('dir'),'rtl');
+ assert.equal(await page.locator('.qira-stage-key li').count(),5);
+ assert.equal(await page.locator('.qira-version-card').count(),await page.locator('.qira-version-card[data-stage]').count());
+ for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(350);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`artifacts/browser/qira-versions-live-${width}.png`,fullPage:true});}
+ const deletion=page.locator('.qira-delete-link').first();if(await deletion.count()){await deletion.click();assert(await page.locator('[data-qira-delete]').isVisible());await page.getByRole('link',{name:'إلغاء والعودة للإصدارات'}).click();}
+ await page.setViewportSize({width:1440,height:1000});await page.waitForTimeout(350);
  const assessment=page.locator('a[href^="/Qira/Details/"]').first();let liveTree=false;
  if(await assessment.count()){
   assert.equal((await page.goto(base+await assessment.getAttribute('href'))).status(),200);

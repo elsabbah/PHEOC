@@ -18,9 +18,19 @@ try{
  await targetPage.goto(base+'/Reports');assert(targetPage.url().includes('/Account/Login'));checks.push('Existing real cookie rejected after security stamp validation');
  await login(targetPage,target);const denied=await targetPage.goto(base+'/Reports');assert.equal(denied.status(),403);checks.push('New login uses the edited permissions');
  const stale=await page.locator('[name=Version]').inputValue();await box('Reports.View').check();await save();await page.goto(base+edit);
- const conflict=await page.evaluate(async version=>{const form=document.querySelector('[data-user-permissions-edit]');const body=new URLSearchParams({Version:version,__RequestVerificationToken:form.querySelector('[name=__RequestVerificationToken]').value});body.append('Permissions','Events.View');const r=await fetch(form.action,{method:'POST',body});return r.status;},stale);assert.equal(conflict,400);await page.reload();assert(await box('QIRA.Review').isChecked());checks.push('Stale form cannot overwrite a more recent permission update');
+ const post=await page.evaluate(()=>{const form=document.querySelector('[data-user-permissions-edit]');return {url:form.action,token:form.querySelector('[name=__RequestVerificationToken]').value};});
+ const conflict=await context.request.post(post.url,{form:{Version:stale,Permissions:'Events.View',__RequestVerificationToken:post.token}});assert.equal(conflict.status(),400);await page.reload();assert(await box('QIRA.Review').isChecked());checks.push('Stale form cannot overwrite a more recent permission update');
  await page.locator('[data-edit-restore]').click();assert(await box('RiskAssessment.Create').isChecked());assert.equal(await box('QIRA.Review').isChecked(),false);await page.reload();assert(await box('QIRA.Review').isChecked());checks.push('Role defaults are an explicit unsaved proposal');
  fs.mkdirSync('artifacts/browser',{recursive:true});await page.screenshot({path:'artifacts/browser/edit-user-permissions-desktop.png',fullPage:true});
  for(const width of [390,320]){await page.setViewportSize({width,height:844});await page.waitForTimeout(350);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`artifacts/browser/edit-user-permissions-${width}.png`,fullPage:true});}
+ await page.goto(base+'/Admin/Users');
+ const deleteLink=page.locator('tbody tr').filter({has:page.locator('td').filter({hasText:target})}).getByRole('link',{name:'حذف المستخدم',exact:true});
+ await deleteLink.click();assert(await page.locator('[data-user-delete]').isVisible());
+ await page.getByRole('link',{name:'إلغاء والعودة للمستخدمين'}).click();assert.equal(await deleteLink.count(),1);checks.push('Delete confirmation can be cancelled without changing the account');
+ await deleteLink.click();await Promise.all([page.waitForURL(base+'/Admin/Users'),page.getByRole('button',{name:'تأكيد حذف المستخدم',exact:true}).click()]);
+ assert.equal(await page.locator('tbody tr').filter({has:page.locator('td').filter({hasText:target})}).count(),0);
+ await targetPage.goto(base+'/');assert(targetPage.url().includes('/Account/Login'));
+ await targetPage.locator('[name=UserName]').fill(target);await targetPage.locator('[name=Password]').fill(password);await targetPage.locator('button.primary').click();await targetPage.waitForLoadState();assert(targetPage.url().includes('/Account/Login'));
+ checks.push('Administrative deletion removes the row, revokes the existing cookie and blocks a fresh login');
  assert.deepEqual(errors,[]);fs.writeFileSync('artifacts/browser/edit-user-permissions-results.json',JSON.stringify({checks,errors,at:new Date().toISOString()},null,2));console.log(JSON.stringify({checks,errors}));
 }finally{await browser.close();}

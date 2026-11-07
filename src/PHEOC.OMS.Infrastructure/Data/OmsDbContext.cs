@@ -111,9 +111,12 @@ public class OmsDbContext(DbContextOptions<OmsDbContext> options, ICurrentUser? 
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         ChangeTracker.DetectChanges();
+        if(ChangeTracker.Entries<QiraAssessment>().Any(e=>e.State==EntityState.Deleted))throw new InvalidOperationException("إصدارات QIRA تحفظ للتدقيق؛ استخدم حذف المسودة الإداري.");
         foreach(var entry in ChangeTracker.Entries<QiraAssessment>().Where(e=>e.State==EntityState.Modified))
         {
             var before=entry.OriginalValues.GetValue<QiraState>(nameof(QiraAssessment.State));
+            if(before==QiraState.Deleted)throw new InvalidOperationException("مسودة QIRA المحذوفة محفوظة للتدقيق ولا تعدل.");
+            if(entry.Entity.State==QiraState.Deleted&&before is not (QiraState.New or QiraState.InProgress))throw new InvalidOperationException("لا يمكن حذف تقييم QIRA مكتمل أو مراجع أو معتمد.");
             if(before>=QiraState.Completed)
             {
                 var allowed=new[]{nameof(QiraAssessment.State),nameof(QiraAssessment.ReviewedAt),nameof(QiraAssessment.ReviewedBy),nameof(QiraAssessment.ReviewNote),nameof(QiraAssessment.ApprovedAt),nameof(QiraAssessment.ApprovedBy),nameof(QiraAssessment.ApprovalNote),nameof(Record.ModifiedAt)};

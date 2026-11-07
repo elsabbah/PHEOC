@@ -116,7 +116,7 @@ public interface IOmsService
     Task<IntegrationBoard> Integration();
 }
 public class PasswordResetInput { [Required,MinLength(12),StringLength(128)]public string Password { get; set; }=""; }
-public interface IUserAdministration { Task<IReadOnlyList<UserRow>> Users(); Task Create(UserInput input); Task Disable(string id,bool disabled); Task ResetPassword(string id,PasswordResetInput input); Task<UserPermissionEdit> EditPermissions(string id); Task UpdatePermissions(string id,UserPermissionsInput input); }
+public interface IUserAdministration { Task<IReadOnlyList<UserRow>> Users(); Task Create(UserInput input); Task Disable(string id,bool disabled); Task ResetPassword(string id,PasswordResetInput input); Task<UserPermissionEdit> EditPermissions(string id); Task UpdatePermissions(string id,UserPermissionsInput input); Task Delete(string id,UserAccountDeleteInput input); }
 public record IntakeResult(long EventId, Guid PublicId, bool Duplicate);
 public interface IEventIntake { Task<IntakeResult> Receive(string source, string key, string externalId, EventInput input); }
 public interface IReportExporter { byte[] Excel(IReadOnlyList<ReportRow> reports); byte[] Word(ReportRow report); }

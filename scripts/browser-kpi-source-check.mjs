@@ -1,0 +1,20 @@
+import {chromium} from 'playwright';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const base=process.argv[2].replace(/\/$/,''),id=process.argv[3];
+const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
+try{
+ const page=await browser.newPage({viewport:{width:1440,height:1000},timezoneId:'America/Los_Angeles'}),errors=[],checks=[];
+ page.on('pageerror',e=>errors.push(e.message));page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
+ await page.goto(base+'/Analytics/Event/'+id);await page.locator('[data-kpi-source-result]').waitFor({state:'visible'});
+ const form=page.locator('[data-kpi-dates]'),field=name=>form.locator(`[name=${name}]`);
+ assert.equal(await field('Emergence').inputValue(),'');assert.equal(await field('Detection').inputValue(),'');assert.equal(await field('Notification').inputValue(),'');
+ assert.equal(await page.locator('[data-kpi-emergence]').innerText(),'2026-01-02');assert((await page.locator('[data-kpi-response]').innerText()).includes('2026-01-04 13:45:00'));checks.push('Preview displays source-local dates and response registration without browser timezone shifting or automatic writes');
+ await field('Excluded').check();await page.locator('[data-kpi-apply]').click();assert.equal(await field('Emergence').inputValue(),'2026-01-02');assert.equal(await field('Detection').inputValue(),'2026-01-03');assert.equal(await field('Notification').inputValue(),'2026-01-04');assert(await field('Excluded').isChecked());assert((await field('Evidence').inputValue()).includes('Signals.EventStartDate'));
+ await Promise.all([page.waitForNavigation(),form.getByRole('button',{name:'حفظ قيد التواريخ'}).click()]);await page.locator('[data-kpi-source-result]').waitFor({state:'visible'});await page.reload();await page.locator('[data-kpi-source-result]').waitFor({state:'visible'});
+ assert.equal(await field('Emergence').inputValue(),'2026-01-02');assert.equal(await field('Detection').inputValue(),'2026-01-03');assert.equal(await field('Notification').inputValue(),'2026-01-04');assert(await field('Excluded').isChecked());checks.push('Explicit save and reload retain source evidence, exclusion and notification from first response');
+ await field('Detection').fill('2026-01-05');await field('Notification').fill('2026-01-06');await field('Evidence').fill('دليل يدوي محفوظ في النموذج');await page.locator('[data-kpi-refresh]').click();await page.locator('[data-kpi-refresh]').waitFor({state:'visible'});await page.waitForFunction(()=>!document.querySelector('[data-kpi-refresh]').disabled);await page.locator('[data-kpi-apply]').click();assert.equal(await field('Detection').inputValue(),'2026-01-05');assert.equal(await field('Evidence').inputValue(),'دليل يدوي محفوظ في النموذج');assert.equal(await field('Notification').inputValue(),'2026-01-06');assert(await field('Excluded').isChecked());checks.push('Refreshing and applying source values never overwrite populated fields, manual evidence or exclusion');
+ fs.mkdirSync('artifacts/browser',{recursive:true});for(const width of [1440,390,320]){await page.setViewportSize({width,height:1000});await page.waitForTimeout(350);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await page.screenshot({path:`artifacts/browser/kpi-source-${width}.png`,fullPage:true});}
+ await page.route('**/Analytics/SourceDates/*',route=>route.fulfill({status:200,contentType:'application/json',body:'{'}));await page.locator('[data-kpi-refresh]').click();await page.waitForFunction(()=>document.querySelector('[data-kpi-source-status]').textContent.includes('تعذر'));assert.equal(await field('Detection').inputValue(),'2026-01-05');checks.push('Source read failure keeps the manual form usable without replacing values');
+ assert.deepEqual(errors,[]);fs.writeFileSync('artifacts/browser/kpi-source-results.json',JSON.stringify({checks,errors,at:new Date().toISOString()},null,2));console.log(JSON.stringify({checks,errors}));
+}finally{await browser.close();}

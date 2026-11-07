@@ -47,6 +47,8 @@
 
 ## التحقق والتوثيق
 
+تواريخ المؤشر من EgyptEBS: Contracts/Analytics.cs يضيف CurrentDates وHasEgyptEbsSource وعقد IEgyptEbsKpiDateSource؛ Infrastructure/Services/EgyptEbsKpiDateSource.cs لقراءة تواريخ Signals وأقدم Responses.CreatedAt غير محذوف. AnalyticsService.KpiSourceDates يفوض حسب Reports.View ونطاق الحدث ويربط Inbox بالمصدر، دون حفظ. AnalyticsController.SourceDates تغذية JSON بلا تخزين، Views/Analytics/Event.cshtml وwwwroot/js/kpi-source-dates.js للمعاينة وملء الحقول الفارغة مع مرجع المصدر، وحفظها عبر إجراء Dates القائم. تنسيق الهاتف محصور بـdata-kpi-source في site.css. KpiSourceDatesTests وKpiSourceBrowserTests وscripts/browser-kpi-source-check.mjs للتحقق المعزول المتراجع؛ scripts/browser-kpi-source-live-check.mjs للحدث الحقيقي دون حفظ. مضاهاة المصدر وحدودها في API-Documentation.md.
+
 أوامر التشغيل في README.md، ونتائج الفحص في docs/Verification.md. بيانات تعريف الجداول الحية في database/SchemaInventory.tsv. الاختبارات الآلية تستخدم `PHEOC_TEST_SQL`، واختبار قارئ المصدر يستخدم `PHEOC_EBS_SQL`؛ سكربت Test-Application.ps1 يحمّلهما من الأسرار دون طباعتهما.
 
 الحالة التفصيلية والحدود في DevelopmentProgress.md؛ وتراخيص المكتبات في ThirdPartyNotices.md. تبقى خطتا المرحلة صفر في InitialArchitecturePlan.md وInitialDatabasePlan.md كمرجع تاريخي، وليستا وصفاً للمخطط المطبق.
@@ -92,6 +94,8 @@ EgyptEbsConnectionProbe: مهلة اتصال الاختبار 20 ثانية وس
 
 ## QIRA
 
+سجل الإصدارات الملون وحذف المسودة (2026-11-07): Views/Qira/Event.cshtml يعرض شارات وإطارات لمراحل الإعداد/التقييم/انتظار المراجعة/انتظار الاعتماد/المعتمد، عبر QiraText.StageClass/StageLabel وcss/qira.css. Views/Qira/Delete.cshtml وQiraController.Delete/ConfirmDelete وIQiraService.DeleteQiraDraft تنفذ تأكيداً ثم حذفاً إدارياً للمسودة الخاصة بالمُعد فقط، مع صلاحية الإنشاء ونطاق الحدث وRowVersion. QiraState.Deleted=5 يخزن في عمود State القائم؛ لا ترقية مخطط. تبقى المسودة والأجوبة وQiraHistories وEventTimeline، وتستبعد من السجل والملخص والتحميل المباشر، مع استمرار ترقيم الإصدارات دون إعادة استخدام. OmsDbContext يمنع حذف السجل الفعلي أو تغيير مسودة محذوفة أو حذف تقييم مكتمل. اختبارات QiraSqlTests وQiraBrowserTests وسكربتا browser-qira-check وbrowser-qira-live-check تغطي الحذف والمراحل.
+
 - Domain/Qira/QiraAlgorithm.cs: شجرة WHO دون أوزان؛ QiraRecords.cs: كيانات التعريف والتقييم والإجابة والإجراءات والتاريخ.
 - Application/Contracts/Qira.cs وIQiraService، Infrastructure/Services/QiraService.cs، Web/Controllers/QiraController.cs وViews/Qira وViewSupport/QiraText.cs وwwwroot/css/qira.css وjs/qira-settings.js.
 - تفاصيل الحدث تستخدم Shared/_QiraSummary؛ الإعدادات تربط Qira/Configuration. الطريقة القديمة للقراءة التاريخية فقط.
@@ -102,3 +106,7 @@ EgyptEbsConnectionProbe: مهلة اتصال الاختبار 20 ثانية وس
 شجرة QIRA: Views/Qira/_Tree.cshtml وViewSupport/QiraTree.cs وwwwroot/js/qira-tree.js وcss/qira-tree.css. HTML للبطاقات والنماذج وSVG للأسهم؛ جميع الوصلات مشتقة من Definition.Nodes المحفوظة. QiraDetail.ActionTemplates من مرجع التقييم المثبت تعرض الإجراءات قبل الإكمال. يدعم renderer الاتجاهين والمسار والتكبير دون مكتبة أو CDN. اختبار browser-qira-check يراجع الرسم وسير العمل على SQL بمعاملة متراجعة.
 
 الرجوع في شجرة QIRA: _Tree.cshtml يعرض الخطوة السابقة وروابط تعديل البطاقات ونموذج Qira/Undo. IQiraService.UndoQiraAnswer وOmsService في QiraService.cs يلغيان آخر إجابة نشطة مع سجل تدقيق وRowVersion، دون حذف أو تعديل تقييم مكتمل. التحقق في QiraSqlTests وbrowser-qira-check.mjs.
+
+تعديل صلاحيات حساب موجود: Application/Contracts/UserPermissions.cs لعقود التعديل، Infrastructure/Services/IdentityServices.cs لخدمتي EditPermissions/UpdatePermissions، Web/Controllers/AdminController.cs وViews/Admin/EditPermissions.cshtml وwwwroot/js/user-permissions.js؛ تنسيق الهاتف في site.css. الاختبارات RolePermissionTests وUserPermissionsBrowserTests وscripts/browser-edit-user-permissions-check.mjs تستخدم حسابات ضمن معاملات متراجعة وتراجع cookies الحقيقية. دليل السلوك وحدود التحقق في [RolePermissionDefaults.md](RolePermissionDefaults.md).
+
+حذف المستخدم الإداري: Application/Security/UserAccountStatus.cs لعلامة الحذف في claims، UserAccountDeleteInput في Contracts/UserPermissions.cs، وUserAdministration.Delete في IdentityServices.cs. Views/Admin/DeleteUser.cshtml صفحة التأكيد وAdminController.DeleteUser/ConfirmDeleteUser مسارا العرض والحفظ. قائمة Users تستبعد الحسابات الموسومة، ويُرفض تعديلها أو تفعيلها. لا حذف لسجلات Identity أو التدقيق ولا تغيير مخطط. الفحص الحي للقراءة فقط scripts/browser-user-management-live-check.mjs؛ اختبارات SQL والمتصفح المرتبطة ضمن RolePermissionTests وUserPermissionsBrowserTests.

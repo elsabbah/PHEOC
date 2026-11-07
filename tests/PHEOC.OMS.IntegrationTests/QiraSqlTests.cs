@@ -10,6 +10,34 @@ using PHEOC.OMS.Infrastructure.Services;
 namespace PHEOC.OMS.IntegrationTests;
 public class QiraSqlTests
 {
+    [SqlFact]public async Task DraftDeletionKeepsEvidenceAndAuditHidesSummaryAndNeverReusesRevision()
+    {
+        var actor=new Actor();await using var db=Db(actor);await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);var s=new OmsService(db,actor);
+        var eventId=await Event(s);var id=await s.StartQira(eventId);var stale=(await s.Qira(id)).Assessment.Version;await Scope(s,id);await Answer(s,id,"Q1",QiraChoice.Unknown);
+        var current=(await s.Qira(id)).Assessment;Assert.True(current.CanDelete);
+        await Assert.ThrowsAsync<BusinessRuleException>(()=>s.DeleteQiraDraft(id,new(){Version=stale}));
+        await Assert.ThrowsAsync<BusinessRuleException>(()=>new OmsService(db,new Actor("qa.other")).DeleteQiraDraft(id,new(){Version=current.Version}));
+        await Assert.ThrowsAsync<AccessDeniedException>(()=>new OmsService(db,new Actor("qa.denied",null,Permissions.RiskCreate)).DeleteQiraDraft(id,new(){Version=current.Version}));
+        await Assert.ThrowsAsync<KeyNotFoundException>(()=>new OmsService(db,new Actor("qa.outside",2)).DeleteQiraDraft(id,new(){Version=current.Version}));
+        Assert.Equal(eventId,await s.DeleteQiraDraft(id,new(){Version=current.Version}));db.ChangeTracker.Clear();
+        Assert.Empty((await s.QiraForEvent(eventId)).Assessments);Assert.Null((await s.Event(eventId)).Qira!.Latest);await Assert.ThrowsAsync<KeyNotFoundException>(()=>s.Qira(id));
+        Assert.Equal(QiraState.Deleted,(await db.QiraAssessments.SingleAsync(x=>x.Id==id)).State);
+        Assert.Single(await db.QiraAnswers.Where(x=>x.AssessmentId==id).ToListAsync());Assert.True(await db.QiraHistories.AnyAsync(x=>x.AssessmentId==id&&x.Action=="حذف مسودة التقييم"));
+        Assert.True(await db.EventTimeline.AnyAsync(x=>x.EventId==eventId&&x.Action=="QiraDraftDeleted"));
+        var next=await s.StartQira(eventId);Assert.NotEqual(id,next);Assert.Equal(current.Revision+1,(await s.Qira(next)).Assessment.Revision);
+        await s.DeleteQiraDraft(next,new(){Version=(await s.Qira(next)).Assessment.Version});await tx.RollbackAsync();
+    }
+    [SqlFact]public async Task CompletedReviewedApprovedAndClosedAssessmentsCannotBeDeleted()
+    {
+        var actor=new Actor();await using var db=Db(actor);await using var tx=await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);var s=new OmsService(db,actor);var reviewer=new OmsService(db,new Actor("qa.reviewer"));
+        var eventId=await Event(s);var id=await Completed(s,eventId);
+        async Task Reject(){var a=(await s.Qira(id)).Assessment;Assert.False(a.CanDelete);await Assert.ThrowsAsync<BusinessRuleException>(()=>s.DeleteQiraDraft(id,new(){Version=a.Version}));}
+        await Reject();await reviewer.ReviewQira(id,new(){Version=(await s.Qira(id)).Assessment.Version,Note="QA review"});await Reject();
+        await reviewer.ApproveQira(id,new(){Version=(await s.Qira(id)).Assessment.Version,Note="QA approval"});await Reject();
+        var draft=await s.StartQira(eventId,id);var version=(await s.Qira(draft)).Assessment.Version;
+        var e=await db.Events.SingleAsync(x=>x.Id==eventId);e.Status=EventStatus.Closed;await db.SaveChangesAsync();
+        await Assert.ThrowsAsync<BusinessRuleException>(()=>s.DeleteQiraDraft(draft,new(){Version=version}));await tx.RollbackAsync();
+    }
     private sealed class Actor(string id="qa.qira",int? governorate=null,string? denied=null):ICurrentUser
     {public string Id=>id;public int? GovernorateId=>governorate;public bool Can(string permission)=>permission!=denied;}
     private static OmsDbContext Db(ICurrentUser actor)=>new(new DbContextOptionsBuilder<OmsDbContext>().UseSqlServer(Environment.GetEnvironmentVariable("PHEOC_TEST_SQL"),o=>o.UseCompatibilityLevel(130)).Options,actor);

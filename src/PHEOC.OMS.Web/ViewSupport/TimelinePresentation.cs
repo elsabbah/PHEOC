@@ -13,6 +13,7 @@ public static class TimelinePresentation
         "Received"=>new("استقبال الحدث","blue","inbox"),
         "UnderAssessment" or "RiskAssessed"=>new("تقييم المخاطر","gold","shield"),
         "QiraStarted"=>new("بدء تقييم QIRA","gold","shield"),
+        "QiraDraftDeleted"=>new("حذف مسودة QIRA","neutral","clipboard"),
         "QiraCompleted"=>new("إكمال تقييم QIRA","teal","clipboard"),
         "QiraApproved"=>new("اعتماد تقييم QIRA","green","shield"),
         "QiraActions"=>new("إجراءات QIRA","blue","clipboard"),

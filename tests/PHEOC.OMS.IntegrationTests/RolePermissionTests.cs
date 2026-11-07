@@ -11,6 +11,27 @@ namespace PHEOC.OMS.IntegrationTests;
 
 public class RolePermissionTests
 {
+    [SqlFact]public async Task AdministrativeDeletionPreservesHistoryRejectsStaleAndUnauthorizedRequestsAndCannotBeReenabled()
+    {
+        await using var provider=Provider();await using var scope=provider.CreateAsyncScope();var db=scope.ServiceProvider.GetRequiredService<OmsDbContext>();await using var tx=await db.Database.BeginTransactionAsync();
+        var users=scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();var service=new UserAdministration(db,users,new Actor());var suffix=Guid.NewGuid().ToString("N");
+        await service.Create(new(){UserName="qa.delete."+suffix,Password="Qa!8aaA"+suffix,Role="Risk Assessment Officer",Permissions=[Permissions.EventsView]});
+        var user=(await users.FindByNameAsync("qa.delete."+suffix))!;var model=await service.EditPermissions(user.Id);var stamp=user.SecurityStamp;
+        var input=new UserAccountDeleteInput{Version=model.Version};
+        await Assert.ThrowsAsync<AccessDeniedException>(()=>new UserAdministration(db,users,new LimitedActor("qa.denied",null,false)).Delete(user.Id,input));
+        await Assert.ThrowsAsync<AccessDeniedException>(()=>new UserAdministration(db,users,new LimitedActor("qa.local",1)).Delete(user.Id,input));
+        await Assert.ThrowsAsync<PHEOC.OMS.Domain.Rules.BusinessRuleException>(()=>new UserAdministration(db,users,new LimitedActor(user.Id)).Delete(user.Id,input));
+        await Assert.ThrowsAsync<PHEOC.OMS.Domain.Rules.BusinessRuleException>(()=>service.Delete(user.Id,new(){Version="stale"}));
+        await service.Delete(user.Id,input);db.ChangeTracker.Clear();user=(await users.FindByIdAsync(user.Id))!;
+        Assert.True(await users.IsLockedOutAsync(user));Assert.NotEqual(stamp,user.SecurityStamp);
+        Assert.Contains(await users.GetClaimsAsync(user),c=>c.Type==UserAccountStatus.ClaimType&&c.Value==UserAccountStatus.Deleted);
+        Assert.Contains("Risk Assessment Officer",await users.GetRolesAsync(user));Assert.DoesNotContain(await service.Users(),u=>u.Id==user.Id);
+        Assert.True(await db.AuditLogs.AnyAsync(a=>a.EntityId==user.Id&&a.Action=="UserAdministrativelyDeleted"));
+        await Assert.ThrowsAsync<PHEOC.OMS.Domain.Rules.BusinessRuleException>(()=>service.Disable(user.Id,false));
+        await Assert.ThrowsAsync<PHEOC.OMS.Domain.Rules.BusinessRuleException>(()=>service.UpdatePermissions(user.Id,new(){Version=user.ConcurrencyStamp!,Permissions=[Permissions.EventsView]}));
+        await Assert.ThrowsAsync<PHEOC.OMS.Domain.Rules.BusinessRuleException>(()=>service.ResetPassword(user.Id,new(){Password="Qa!9Aa"+suffix}));
+        await tx.RollbackAsync();
+    }
     [Fact]public void EveryRoleHasValidDistinctViewableDefaultsAndSensitiveRolesStayLimited()
     {
         foreach(var role in Permissions.Roles)

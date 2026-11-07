@@ -5,7 +5,7 @@ namespace PHEOC.OMS.Domain.Qira;
 public enum QiraChoice { Yes=1,No=2,Unknown=3 }
 public enum QiraRisk { VeryLow=1,Low=2,Moderate=3,High=4,VeryHigh=5 }
 public enum QiraConfidence { High=1,Moderate=2,Low=3 }
-public enum QiraState { New=0,InProgress=1,Completed=2,Reviewed=3,Approved=4 }
+public enum QiraState { New=0,InProgress=1,Completed=2,Reviewed=3,Approved=4,Deleted=5 }
 public record QiraNode(string Id,int Axis,string Number,string Arabic,string English,string Guidance,string Yes,string No,string Unknown);
 public record QiraDocument(string Version,string Source,IReadOnlyList<string> Axes,IReadOnlyList<QiraNode> Nodes);
 public record QiraEvaluation(IReadOnlyList<string> Path,string? Next,QiraRisk? Risk,IReadOnlyList<string> UnknownNodes);
